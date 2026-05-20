@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <!-- Google Tag Manager -->
+    <script>(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+    new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+    j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+    'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+    })(window,document,'script','dataLayer','GTM-XXXXXXX');</script>
+    <!-- End Google Tag Manager -->
+    
+    <!-- Enhanced Conversions Tracking -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            var email = sessionStorage.getItem('submittedEmail');
+            if (email) {
+                window.dataLayer = window.dataLayer || [];
+                window.dataLayer.push({
+                    'event': 'lead_conversion',
+                    'enhanced_conversion_data': {
+                        'email': email
+                    }
+                });
+                // Optional: clear the email after pushing if you don't want it to persist
+                // sessionStorage.removeItem('submittedEmail');
+            }
+        });
+    </script>
+    
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Thank You — JK Interiors</title>
+    <meta name="description" content="Thank you for reaching out to JK Interiors.">
+
+    <!-- Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Google+Sans:wght@400;500;700&family=DM+Sans:ital,opsz,wght@0,9..40,100..1000;1,9..40,100..1000&display=swap" rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="style.css">
+    
+    <style>
+        .thank-you-section {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background: var(--dark);
+            color: white;
+            padding: 20px;
+        }
+        .thank-you-box {
+            max-width: 600px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(176, 137, 104, 0.2);
+            padding: 60px 40px;
+            border-radius: 4px;
+        }
+        .thank-you-box h1 {
+            font-size: 3.5rem;
+            margin-bottom: 20px;
+            color: var(--accent);
+        }
+        .thank-you-box p {
+            font-size: 1.1rem;
+            color: #ccc;
+            margin-bottom: 40px;
+            line-height: 1.6;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Google Tag Manager (noscript) -->
+    <noscript><iframe src="https://www.googletagmanager.com/ns.html?id=GTM-XXXXXXX"
+    height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
+    <!-- End Google Tag Manager (noscript) -->
+
+    <!-- Navbar -->
+    <nav id="navbar" class="scrolled">
+        <div class="container" style="justify-content: center;">
+            <div class="logo">
+                <a href="index.html">
+                    <img src="images/jk-interior-logo.png" alt="JK Interiors Logo" style="max-width: 150px;">
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <section class="thank-you-section">
+        <div class="thank-you-box reveal">
+            <h1>Thank You!</h1>
+            <p>Your details have been successfully submitted. One of our design experts will get in touch with you shortly to discuss your dream space.</p>
+            <a href="index.html" class="btn btn-primary">Return to Homepage</a>
+        </div>
+    </section>
+
+    <script>
+        // Simple reveal animation trigger
+        setTimeout(() => {
+            document.querySelectorAll('.reveal').forEach(el => el.classList.add('in-view'));
+        }, 100);
+    </script>
+</body>
+</html>

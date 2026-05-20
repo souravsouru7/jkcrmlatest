@@ -1,0 +1,138 @@
+<!--
+  JK Interiors — Website Enquiry Form
+  Drop this into any webpage.
+  Submissions go directly into the CRM as new leads.
+
+  SETUP:
+  1. Replace YOUR_BACKEND_URL with your deployed backend URL
+     e.g. https://your-backend.onrender.com
+  2. Replace YOUR_API_KEY with the value in backend/.env → PUBLIC_API_KEY
+  3. That's it. Submit the form → lead appears in your CRM instantly.
+-->
+
+<form id="jk-enquiry-form" novalidate>
+  <div>
+    <label for="name">Full Name *</label>
+    <input id="name" name="name" type="text" placeholder="Your name" required />
+  </div>
+
+  <div>
+    <label for="phone">Phone Number *</label>
+    <input id="phone" name="phone" type="tel" placeholder="+91 98765 43210" required />
+  </div>
+
+  <div>
+    <label for="email">Email</label>
+    <input id="email" name="email" type="email" placeholder="you@example.com" />
+  </div>
+
+  <div>
+    <label for="location">City / Location</label>
+    <input id="location" name="location" type="text" placeholder="Bengaluru, Mumbai..." />
+  </div>
+
+  <div>
+    <label for="project">Project Type</label>
+    <select id="project" name="project">
+      <option value="">Select project type</option>
+      <option value="2BHK Interiors">2BHK Interiors</option>
+      <option value="3BHK Interiors">3BHK Interiors</option>
+      <option value="4BHK Interiors">4BHK Interiors</option>
+      <option value="Villa Interiors">Villa Interiors</option>
+      <option value="Modular Kitchen">Modular Kitchen</option>
+      <option value="Office Interiors">Office Interiors</option>
+      <option value="Renovation">Renovation</option>
+      <option value="Other">Other</option>
+    </select>
+  </div>
+
+  <div>
+    <label for="budget">Approximate Budget (₹)</label>
+    <select id="budget" name="budget">
+      <option value="">Select budget range</option>
+      <option value="300000">Up to ₹3 Lakh</option>
+      <option value="600000">₹3–6 Lakh</option>
+      <option value="1000000">₹6–10 Lakh</option>
+      <option value="1500000">₹10–15 Lakh</option>
+      <option value="2500000">₹15–25 Lakh</option>
+      <option value="5000000">₹25 Lakh+</option>
+    </select>
+  </div>
+
+  <div>
+    <label for="message">Message</label>
+    <textarea id="message" name="message" rows="3" placeholder="Tell us about your project..."></textarea>
+  </div>
+
+  <p id="jk-form-error" style="color:red;display:none;"></p>
+  <p id="jk-form-success" style="color:green;display:none;"></p>
+
+  <button type="submit" id="jk-submit-btn">Send Enquiry</button>
+</form>
+
+<script>
+  const BACKEND_URL = "YOUR_BACKEND_URL"; // e.g. https://your-app.onrender.com
+  const API_KEY     = "YOUR_API_KEY";      // must match PUBLIC_API_KEY in backend/.env
+
+  document.getElementById("jk-enquiry-form").addEventListener("submit", async function (e) {
+    e.preventDefault();
+
+    const btn     = document.getElementById("jk-submit-btn");
+    const errEl   = document.getElementById("jk-form-error");
+    const successEl = document.getElementById("jk-form-success");
+
+    errEl.style.display = "none";
+    successEl.style.display = "none";
+    btn.disabled = true;
+    btn.textContent = "Sending...";
+
+    const form = e.target;
+
+    const payload = {
+      name:     form.name.value.trim(),
+      phone:    form.phone.value.trim(),
+      email:    form.email.value.trim(),
+      location: form.location.value.trim(),
+      project:  form.project.value,
+      budget:   form.budget.value,
+      source:   "Website",
+      message:  form.message.value.trim(),
+    };
+
+    if (!payload.name || !payload.phone) {
+      errEl.textContent = "Name and phone number are required.";
+      errEl.style.display = "block";
+      btn.disabled = false;
+      btn.textContent = "Send Enquiry";
+      return;
+    }
+
+    try {
+      const res = await fetch(`${BACKEND_URL}/api/public/lead`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "x-api-key": API_KEY,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await res.json();
+
+      if (res.ok) {
+        successEl.textContent = data.message || "Thank you! We will contact you shortly.";
+        successEl.style.display = "block";
+        form.reset();
+      } else {
+        errEl.textContent = data.error || "Something went wrong. Please try again.";
+        errEl.style.display = "block";
+      }
+    } catch {
+      errEl.textContent = "Could not connect. Please call us directly.";
+      errEl.style.display = "block";
+    } finally {
+      btn.disabled = false;
+      btn.textContent = "Send Enquiry";
+    }
+  });
+</script>
