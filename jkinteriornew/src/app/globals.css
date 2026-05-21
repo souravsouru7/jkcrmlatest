@@ -137,8 +137,219 @@ a {
   }
 }
 
+@keyframes jk-loader-grid-drift {
+  0% { transform: translate3d(0, 0, 0); opacity: 0.16; }
+  50% { opacity: 0.28; }
+  100% { transform: translate3d(54px, 54px, 0); opacity: 0.16; }
+}
+
+@keyframes jk-loader-orbit {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes jk-loader-sheen {
+  0% { transform: translateX(-120%); opacity: 0; }
+  20%, 70% { opacity: 1; }
+  100% { transform: translateX(120%); opacity: 0; }
+}
+
+@keyframes jk-loader-line {
+  0% { transform: scaleX(0); transform-origin: left; opacity: 0; }
+  18% { opacity: 1; }
+  52% { transform: scaleX(1); transform-origin: left; opacity: 1; }
+  53% { transform-origin: right; }
+  100% { transform: scaleX(0); transform-origin: right; opacity: 0.28; }
+}
+
 .jk-hero {
   isolation: isolate;
+}
+
+.jk-premium-loader {
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 50% 42%, rgba(216, 189, 125, 0.12), transparent 34%),
+    linear-gradient(145deg, #080807 0%, #141210 52%, #1b1712 100%);
+}
+
+.jk-premium-loader-grid {
+  position: absolute;
+  inset: -80px;
+  background:
+    linear-gradient(90deg, rgba(241, 223, 182, 0.08) 1px, transparent 1px),
+    linear-gradient(180deg, rgba(241, 223, 182, 0.06) 1px, transparent 1px);
+  background-size: 54px 54px;
+  mask-image: radial-gradient(circle at center, rgba(0, 0, 0, 0.84), transparent 68%);
+  animation: jk-loader-grid-drift 5s linear infinite;
+}
+
+.jk-premium-loader-glow {
+  position: absolute;
+  width: min(72vw, 620px);
+  aspect-ratio: 1;
+  border: 1px solid rgba(216, 189, 125, 0.08);
+  transform: rotate(45deg);
+  background: linear-gradient(135deg, rgba(255, 255, 255, 0.055), transparent 62%);
+  box-shadow: 0 0 90px rgba(216, 189, 125, 0.08);
+}
+
+.jk-premium-loader-panel {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  justify-items: center;
+  gap: 26px;
+  width: min(86vw, 420px);
+  padding: 40px 28px;
+}
+
+.jk-loader-mark-wrap {
+  position: relative;
+  display: grid;
+  width: 164px;
+  height: 164px;
+  place-items: center;
+}
+
+.jk-loader-mark-wrap::before,
+.jk-loader-mark-wrap::after {
+  position: absolute;
+  inset: 18px;
+  content: "";
+  border: 1px solid rgba(216, 189, 125, 0.18);
+}
+
+.jk-loader-mark-wrap::after {
+  inset: 0;
+  border-color: rgba(255, 255, 255, 0.08);
+  transform: rotate(45deg);
+}
+
+.jk-loader-corner {
+  position: absolute;
+  width: 28px;
+  height: 28px;
+  border-color: var(--gold-soft);
+  opacity: 0.72;
+}
+
+.jk-loader-corner.top-left {
+  top: 0;
+  left: 0;
+  border-top: 1px solid var(--gold-soft);
+  border-left: 1px solid var(--gold-soft);
+}
+
+.jk-loader-corner.top-right {
+  top: 0;
+  right: 0;
+  border-top: 1px solid var(--gold-soft);
+  border-right: 1px solid var(--gold-soft);
+}
+
+.jk-loader-corner.bottom-left {
+  bottom: 0;
+  left: 0;
+  border-bottom: 1px solid var(--gold-soft);
+  border-left: 1px solid var(--gold-soft);
+}
+
+.jk-loader-corner.bottom-right {
+  right: 0;
+  bottom: 0;
+  border-right: 1px solid var(--gold-soft);
+  border-bottom: 1px solid var(--gold-soft);
+}
+
+.jk-loader-orbit {
+  position: absolute;
+  inset: 6px;
+  border: 1px solid rgba(216, 189, 125, 0.12);
+  border-radius: 999px;
+  animation: jk-loader-orbit 5.8s linear infinite;
+}
+
+.jk-loader-orbit span {
+  position: absolute;
+  top: 18px;
+  width: 6px;
+  height: 6px;
+  border-radius: 999px;
+  background: var(--gold-soft);
+  box-shadow: 0 0 18px rgba(241, 223, 182, 0.65);
+}
+
+.jk-loader-orbit span:first-child {
+  left: 24px;
+}
+
+.jk-loader-orbit span:last-child {
+  right: 24px;
+  opacity: 0.55;
+}
+
+.jk-loader-logo {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 106px;
+  height: 106px;
+  place-items: center;
+  overflow: hidden;
+  background: rgba(8, 8, 8, 0.24);
+}
+
+.jk-loader-logo::after {
+  position: absolute;
+  inset: 0;
+  content: "";
+  background: linear-gradient(105deg, transparent 20%, rgba(255, 255, 255, 0.26), transparent 80%);
+  animation: jk-loader-sheen 2.8s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.jk-loader-copy {
+  display: grid;
+  gap: 9px;
+  text-align: center;
+}
+
+.jk-loader-copy span {
+  color: var(--gold-soft);
+  font-family: var(--font-label);
+  font-size: 0.72rem;
+  font-weight: 900;
+  letter-spacing: 0.28em;
+  text-transform: uppercase;
+}
+
+.jk-loader-copy strong {
+  color: rgba(255, 255, 255, 0.62);
+  font-family: var(--font-display);
+  font-size: clamp(1.24rem, 5vw, 1.65rem);
+  font-weight: 400;
+  line-height: 1.2;
+}
+
+.jk-loader-progress {
+  display: grid;
+  width: min(100%, 280px);
+  gap: 8px;
+}
+
+.jk-loader-progress span {
+  display: block;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold-soft), transparent);
+  transform: scaleX(0);
+  animation: jk-loader-line 1.9s cubic-bezier(0.22, 1, 0.36, 1) infinite;
+}
+
+.jk-loader-progress span:nth-child(2) {
+  animation-delay: 0.18s;
+}
+
+.jk-loader-progress span:nth-child(3) {
+  animation-delay: 0.36s;
 }
 
 .jk-hero::before {

@@ -87,41 +87,51 @@ export default function HeroSection() {
       <AnimatePresence>
         {!videoReady && (
           <motion.div
-            className="fixed inset-0 z-[999] flex flex-col items-center justify-center gap-8"
-            style={{ background: "#141210" }}
+            className="jk-premium-loader fixed inset-0 z-[999] flex items-center justify-center"
             initial={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.7, ease: "easeInOut" }}
+            exit={{ opacity: 0, filter: "blur(12px)" }}
+            transition={{ duration: 0.9, ease: [0.22, 1, 0.36, 1] }}
           >
-            {/* Logo */}
+            <div className="jk-premium-loader-grid" aria-hidden="true" />
+            <div className="jk-premium-loader-glow" aria-hidden="true" />
+
             <motion.div
-              animate={{ opacity: [0.4, 1, 0.4] }}
-              transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
+              className="jk-premium-loader-panel"
+              initial={{ opacity: 0, y: 24, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
             >
-              <Image src="/logo.png" alt="JK Interiors" width={90} height={90} className="object-contain" priority />
+              <div className="jk-loader-mark-wrap">
+                <span className="jk-loader-corner top-left" />
+                <span className="jk-loader-corner top-right" />
+                <span className="jk-loader-corner bottom-left" />
+                <span className="jk-loader-corner bottom-right" />
+
+                <div className="jk-loader-orbit" aria-hidden="true">
+                  <span />
+                  <span />
+                </div>
+
+                <motion.div
+                  className="jk-loader-logo"
+                  animate={{ opacity: [0.72, 1, 0.72], scale: [0.985, 1, 0.985] }}
+                  transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+                >
+                  <Image src="/logo.png" alt="JK Interiors" width={92} height={92} className="object-contain" priority />
+                </motion.div>
+              </div>
+
+              <div className="jk-loader-copy">
+                <span>JK Interiors</span>
+                <strong>Composing your experience</strong>
+              </div>
+
+              <div className="jk-loader-progress" aria-hidden="true">
+                <span />
+                <span />
+                <span />
+              </div>
             </motion.div>
-
-            {/* Spinner ring */}
-            <div className="relative w-16 h-16">
-              <motion.div
-                className="absolute inset-0 rounded-full"
-                style={{ border: "1px solid rgba(216,189,125,0.15)" }}
-              />
-              <motion.div
-                className="absolute inset-0 rounded-full"
-                style={{ border: "2px solid transparent", borderTopColor: "var(--gold)" }}
-                animate={{ rotate: 360 }}
-                transition={{ duration: 1.2, repeat: Infinity, ease: "linear" }}
-              />
-            </div>
-
-            {/* Label */}
-            <span
-              className="uppercase tracking-[0.28em] text-xs"
-              style={{ color: "rgba(255,255,255,0.25)", fontFamily: "var(--font-label)" }}
-            >
-              JK Interiors
-            </span>
           </motion.div>
         )}
       </AnimatePresence>

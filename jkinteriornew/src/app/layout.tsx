@@ -11,6 +11,11 @@ export const metadata: Metadata = {
   title: "JK Interiors — Premium Interior Design Studio, Hyderabad",
   description:
     "Bespoke luxury interiors for villas, penthouses, premium homes, hotels, and refined commercial spaces across Hyderabad. 4.5+ years · 50+ projects · 1-year maintenance.",
+  icons: {
+    icon: "/logo.png",
+    shortcut: "/logo.png",
+    apple: "/logo.png",
+  },
 };
 
 export const viewport: Viewport = {

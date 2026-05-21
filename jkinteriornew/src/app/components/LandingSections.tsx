@@ -13,7 +13,7 @@ const SERVICES = [
     id: "01",
     title: "Residential Interiors",
     summary: "Functional, refined living spaces designed around movement, storage, and everyday comfort.",
-    image: "/images/home.jpg",
+    image: "/For residential interiors.PNG",
     span: "tall",
   },
   {
@@ -48,7 +48,7 @@ const SERVICES = [
     id: "06",
     title: "Renovation & Remodeling",
     summary: "Thoughtful upgrades that modernize spaces while maintaining budget control and structural clarity.",
-    image: "/images/about-us.jpg",
+    image: "/For renovation and remodeling section photo.PNG",
     span: "tall",
   },
 ];
