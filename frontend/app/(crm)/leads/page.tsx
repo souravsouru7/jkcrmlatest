@@ -74,27 +74,28 @@ export default function LeadsPage() {
   }
 
   return (
-    <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
+    <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 max-w-[1400px] mx-auto">
       {/* Page header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Leads</h1>
-          <p className="text-slate-500 text-sm mt-0.5">{leads.length} total leads</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Leads</h1>
+          <p className="text-slate-500 text-xs sm:text-sm mt-0.5">{leads.length} total leads</p>
         </div>
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition shadow-lg shadow-teal-900/30"
+          className="shrink-0 flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold px-3 sm:px-4 py-2.5 rounded-lg transition shadow-lg shadow-teal-900/30"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-4 h-4">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
-          Add Lead
+          <span className="hidden sm:inline">Add Lead</span>
+          <span className="sm:hidden">Add</span>
         </button>
       </div>
 
       {/* Search + filters bar */}
       <div className="flex items-center gap-3">
-        <div className="relative flex-1 max-w-sm">
+        <div className="relative flex-1">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
             <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
@@ -109,8 +110,8 @@ export default function LeadsPage() {
       </div>
 
       {/* Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-        <table className="w-full">
+      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
+        <table className="w-full min-w-[640px]">
           <thead>
             <tr className="border-b border-slate-800">
               <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3.5">Client</th>
@@ -214,9 +215,9 @@ export default function LeadsPage() {
               </button>
             </div>
 
-            <form onSubmit={handleCreate} className="px-6 py-5 space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="col-span-2">
+            <form onSubmit={handleCreate} className="px-4 sm:px-6 py-5 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
+                <div className="sm:col-span-2">
                   <label className={labelCls}>Client Name *</label>
                   <input name="name" type="text" required className={inputCls} placeholder="Full name" />
                 </div>
@@ -244,7 +245,7 @@ export default function LeadsPage() {
                   <label className={labelCls}>Next Follow-up Date *</label>
                   <input name="nextFollowUp" type="date" required className={inputCls} />
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <label className={labelCls}>Source *</label>
                   <select name="source" required className={selectCls}>
                     {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
@@ -262,7 +263,7 @@ export default function LeadsPage() {
                     {["Hot", "Warm", "Cold"].map((p) => <option key={p} value={p}>{p}</option>)}
                   </select>
                 </div>
-                <div className="col-span-2">
+                <div className="sm:col-span-2">
                   <label className={labelCls}>Notes</label>
                   <textarea
                     name="notes"

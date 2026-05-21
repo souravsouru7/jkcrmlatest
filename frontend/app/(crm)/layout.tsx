@@ -238,10 +238,36 @@ export default function CrmLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         {/* Page content */}
-        <main className="flex-1 overflow-y-auto">
+        <main className="flex-1 overflow-y-auto pb-16 lg:pb-0">
           {children}
         </main>
       </div>
+
+      {/* Mobile bottom nav bar — hidden on desktop */}
+      <nav className="fixed bottom-0 inset-x-0 z-30 bg-slate-900/95 backdrop-blur-md border-t border-slate-800 flex lg:hidden safe-bottom">
+        {[NAV[0], NAV[1], NAV[3], SECONDARY_NAV[0]].map(({ href, label, icon }) => (
+          <Link
+            key={href}
+            href={href}
+            onClick={() => setSidebarOpen(false)}
+            className={`flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 transition-colors ${
+              isActive(href) ? "text-teal-400" : "text-slate-500 active:text-white"
+            }`}
+          >
+            <span className="w-5 h-5 [&>svg]:w-full [&>svg]:h-full">{icon}</span>
+            <span className="text-[9px] font-semibold tracking-wide">{label}</span>
+          </Link>
+        ))}
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="flex-1 flex flex-col items-center justify-center py-2.5 gap-0.5 text-slate-500 active:text-white transition-colors"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-5 h-5">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6.75h16.5M3.75 12h16.5M3.75 17.25h16.5" />
+          </svg>
+          <span className="text-[9px] font-semibold tracking-wide">More</span>
+        </button>
+      </nav>
     </div>
   );
 }

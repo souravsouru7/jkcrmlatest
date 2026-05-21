@@ -62,3 +62,13 @@ export function updateSiteVisit(req, res) {
 
   return res.json(visit);
 }
+
+export function updateScopeSheet(req, res) {
+  const visit = store.visits.find((v) => v.id === Number(req.params.id));
+  if (!visit) return res.status(404).json({ error: "Site visit not found" });
+
+  visit.scopeSheet = req.body;
+  visit.updatedAt = new Date().toISOString();
+
+  return res.json(visit);
+}

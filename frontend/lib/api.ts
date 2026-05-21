@@ -102,6 +102,8 @@ export const api = {
     request<unknown>("/site-visits", { method: "POST", body: JSON.stringify(body) }),
   updateSiteVisit: (id: number, body: Record<string, unknown>) =>
     request<unknown>(`/site-visits/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  updateScopeSheet: (id: number, scopeSheet: Record<string, unknown>) =>
+    request<unknown>(`/site-visits/${id}/scope-sheet`, { method: "PUT", body: JSON.stringify(scopeSheet) }),
 
   // Quotations
   quotations: (params?: Record<string, string>) => {

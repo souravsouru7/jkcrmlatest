@@ -132,21 +132,22 @@ export default function DashboardPage() {
   const maxStageValue = Math.max(...(data?.stageBreakdown?.map((r) => r.value) ?? [1]), 1);
 
   return (
-    <div className="p-6 space-y-6 max-w-[1400px] mx-auto">
+    <div className="p-4 sm:p-6 space-y-5 sm:space-y-6 max-w-[1400px] mx-auto">
       {/* Page header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-          <p className="text-slate-500 text-sm mt-0.5">{today}</p>
+      <div className="flex items-center justify-between gap-3">
+        <div className="min-w-0">
+          <h1 className="text-xl sm:text-2xl font-bold text-white">Dashboard</h1>
+          <p className="text-slate-500 text-xs sm:text-sm mt-0.5 truncate">{today}</p>
         </div>
         <Link
           href="/leads"
-          className="flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold px-4 py-2.5 rounded-lg transition shadow-lg shadow-teal-900/30"
+          className="shrink-0 flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold px-3 sm:px-4 py-2.5 rounded-lg transition shadow-lg shadow-teal-900/30"
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-4 h-4">
             <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
           </svg>
-          Add Lead
+          <span className="hidden sm:inline">Add Lead</span>
+          <span className="sm:hidden">Add</span>
         </Link>
       </div>
 
@@ -179,9 +180,9 @@ export default function DashboardPage() {
       )}
 
       {/* Middle row: Hot Leads + Follow-ups */}
-      <div className="grid grid-cols-1 xl:grid-cols-5 gap-6">
+      <div className="grid grid-cols-1 xl:grid-cols-5 gap-4 sm:gap-6">
         {/* Hot Leads table */}
-        <div className="xl:col-span-3 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
+        <div className="xl:col-span-3 bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
           <div className="flex items-center justify-between px-5 py-4 border-b border-slate-800">
             <h2 className="font-semibold text-white text-sm">Hot Leads</h2>
             <Link href="/leads" className="text-teal-400 hover:text-teal-300 text-xs font-medium transition">
@@ -194,7 +195,7 @@ export default function DashboardPage() {
               {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-12" />)}
             </div>
           ) : (
-            <table className="w-full">
+            <table className="w-full min-w-[380px]">
               <thead>
                 <tr className="border-b border-slate-800">
                   <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3">Client</th>
@@ -292,19 +293,20 @@ export default function DashboardPage() {
             {Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-10" />)}
           </div>
         ) : (
-          <div className="p-5 space-y-3">
+          <div className="p-4 sm:p-5 space-y-3">
             {(data?.stageBreakdown ?? []).filter((r) => r.count > 0).map((row) => (
-              <div key={row.stage} className="flex items-center gap-4">
-                <p className="text-slate-400 text-sm w-32 shrink-0">{row.stage}</p>
+              <div key={row.stage} className="flex items-center gap-2 sm:gap-4">
+                <p className="text-slate-400 text-xs sm:text-sm w-24 sm:w-32 shrink-0 truncate">{row.stage}</p>
                 <div className="flex-1 h-2 bg-slate-800 rounded-full overflow-hidden">
                   <div
                     className="h-full bg-teal-500 rounded-full transition-all"
                     style={{ width: `${Math.max((row.value / maxStageValue) * 100, 2)}%` }}
                   />
                 </div>
-                <div className="flex items-center gap-3 shrink-0 text-right">
-                  <span className="text-slate-500 text-xs w-12">{row.count} lead{row.count !== 1 ? "s" : ""}</span>
-                  <span className="font-semibold text-teal-400 text-sm w-28 text-right">{money(row.value)}</span>
+                <div className="flex items-center gap-1 sm:gap-3 shrink-0 text-right">
+                  <span className="text-slate-500 text-xs hidden sm:inline">{row.count} lead{row.count !== 1 ? "s" : ""}</span>
+                  <span className="text-slate-500 text-xs sm:hidden">{row.count}</span>
+                  <span className="font-semibold text-teal-400 text-xs sm:text-sm">{money(row.value)}</span>
                 </div>
               </div>
             ))}
