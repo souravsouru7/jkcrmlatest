@@ -14,7 +14,7 @@ import reminderRoutes from "./routes/reminders.js";
 
 const app = express();
 
-app.use(cors({ origin: true, credentials: true }));
+app.use(cors({ origin: "*", methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"], allowedHeaders: ["Content-Type", "Authorization"] }));
 app.use(express.json());
 
 app.get("/api/health", (_req, res) => {
