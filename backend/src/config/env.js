@@ -10,4 +10,5 @@ export const config = {
   seedPassword: process.env.SEED_PASSWORD || "Jk@12345",
   nodeEnv: process.env.NODE_ENV || "development",
   publicApiKey: process.env.PUBLIC_API_KEY || "jk-public-2026",
+  sheetWebhookSecret: process.env.SHEET_WEBHOOK_SECRET || "jk-sheet-sync-2026",
 };
