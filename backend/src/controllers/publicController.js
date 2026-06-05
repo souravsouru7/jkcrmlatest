@@ -82,32 +82,22 @@ export async function submitLead(req, res) {
   return res.status(201).json({ success: true, message: "Thank you! We will contact you shortly." });
 }
 
-// Exact column mappings for JK Interiors sheet + common fallbacks
+// Exact column mappings for JK Interiors lead sheet
 const FIELD_MAP = {
-  date:     ["date", "submitted at", "created date", "lead date"],
-  name:     ["name", "full name", "client name", "customer name", "customer", "client"],
-  phone:    ["phone number", "phone", "mobile number", "mobile", "contact number", "contact", "whatsapp", "whatsapp number"],
-  email:    ["email", "email address", "mail"],
-  dob:      ["dob", "date of birth", "birth date"],
-  location: ["which location is your property in?", "location", "city", "area", "address"],
-  project:  ["what type of home do you have?", "project type", "project", "service", "type"],
-  budget:   ["what is your estimated interior budget?", "estimated interior budget", "budget range", "budget"],
-  platform: ["platform", "lead source", "source"],
-  quality:  ["quality"],
+  date: ["date"],
+  email: ["email"],
+  name: ["name"],
+  phone: ["phone number"],
+  dob: ["dob"],
+  project: ["what type of home do you have?"],
+  budget: ["what is your estimated interior budget?"],
+  location: ["which location is your property in?"],
+  quality: ["quality"],
   qualityType: ["quality type"],
-  isPositive: ["is positive"],
-  siteVisit:  ["is site visit done"],
-  calledBy:   ["called by"],
-  campaign:   ["campaign name"],
-  adset:      ["adset name"],
-  adName:     ["ad name"],
-  comments:   ["initial comments", "comments", "notes", "message", "requirements", "details"],
-  call1:       ["call 1"],
-  call2:       ["call 2"],
-  call3:       ["call 3"],
-  call4:       ["call 4"],
-  call5:       ["call 5"],
-  call6:       ["call 6"],
+  comments: ["initial comments"],
+  call1: ["call 1"],
+  call2: ["call 2"],
+  call3: ["call 3"],
 };
 
 function normalizeValue(value) {
@@ -120,7 +110,7 @@ function resolveFields(row) {
   for (const [key, val] of Object.entries(row)) {
     const k = key.toLowerCase().trim();
     for (const [field, variants] of Object.entries(FIELD_MAP)) {
-      if (variants.some((v) => k === v || k.includes(v))) {
+      if (variants.some((v) => k === v)) {
         const value = normalizeValue(val);
         if (normalized[field] === undefined && value) normalized[field] = value;
         break;
@@ -200,18 +190,9 @@ export async function googleSheetWebhook(req, res) {
   if (f.quality) noteParts.push(`Quality: ${f.quality}`);
   if (f.qualityType) noteParts.push(`Quality Type: ${f.qualityType}`);
   if (f.comments) noteParts.push(`Initial Comments: ${f.comments}`);
-  ["call1", "call2", "call3", "call4", "call5", "call6"].forEach((key, index) => {
+  ["call1", "call2", "call3"].forEach((key, index) => {
     if (f[key]) noteParts.push(`Call ${index + 1}: ${f[key]}`);
   });
-  if (f.campaign) noteParts.push(`Campaign: ${f.campaign}`);
-  if (f.adset)    noteParts.push(`Adset: ${f.adset}`);
-  if (f.adName)   noteParts.push(`Ad: ${f.adName}`);
-
-  // Stage: promote to Site Visit if already done
-  const siteVisitDone = String(f.siteVisit || "").toLowerCase().trim();
-  const stage = (siteVisitDone === "yes" || siteVisitDone === "true" || siteVisitDone === "1")
-    ? "Site Visit"
-    : "New Lead";
 
   const now = new Date().toISOString();
   const createdAt = parseSheetDate(f.date) || now;
@@ -234,12 +215,9 @@ export async function googleSheetWebhook(req, res) {
     call1: f.call1 ? String(f.call1).trim() : "",
     call2: f.call2 ? String(f.call2).trim() : "",
     call3: f.call3 ? String(f.call3).trim() : "",
-    call4: f.call4 ? String(f.call4).trim() : "",
-    call5: f.call5 ? String(f.call5).trim() : "",
-    call6: f.call6 ? String(f.call6).trim() : "",
-    stage,
-    priority: mapPriority(f.quality, f.isPositive),
-    owner:    f.calledBy ? String(f.calledBy).trim() : "Sales Admin",
+    stage: "New Lead",
+    priority: mapPriority(f.quality),
+    owner: "Sales Admin",
     nextFollowUp: null,
     lastActivity: `Lead synced from Google Sheet${sheetName ? ` (${sheetName})` : ""}`,
     notes:    noteParts.join(" | "),

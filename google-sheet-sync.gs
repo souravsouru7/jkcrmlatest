@@ -19,6 +19,22 @@ function getCrmSheetSyncConfig() {
     webhookSecret: "jk-sheet-sync-2026", // must match SHEET_WEBHOOK_SECRET in backend .env
     syncedColumnHeader: "CRM Synced",
     syncedMarker: "YES",
+    expectedLeadHeaders: [
+      "Date",
+      "Email",
+      "Name",
+      "Phone Number",
+      "DOB",
+      "What type of home do you have?",
+      "What is your estimated interior budget?",
+      "Which location is your property in?",
+      "Quality",
+      "Quality Type",
+      "Initial Comments",
+      "Call 1",
+      "Call 2",
+      "Call 3",
+    ],
   };
 }
 
@@ -104,6 +120,10 @@ function syncCrmSheetAllNow() {
 
 function syncCrmSheetAllUnsyncedRows(sheet) {
   const headers = getCrmSheetHeaders(sheet);
+  if (!hasCrmSheetLeadHeaders(headers)) {
+    Logger.log(`Skipped sheet ${sheet.getName()}: missing Name or Phone Number header`);
+    return 0;
+  }
   const syncedCol = ensureCrmSheetSyncedColumn(sheet, headers);
   const lastRow = sheet.getLastRow();
   let count = 0;
@@ -111,10 +131,15 @@ function syncCrmSheetAllUnsyncedRows(sheet) {
 
   for (let row = 2; row <= lastRow; row++) {
     const syncedValue = sheet.getRange(row, syncedCol).getValue();
-    if (syncedValue === config.syncedMarker) continue;
+    if (syncedValue === config.syncedMarker || syncedValue === "SKIP") continue;
 
     const rowData = getCrmSheetRowAsObject(sheet, headers, row);
     if (!rowData) continue;
+    if (!hasCrmSheetRequiredLeadFields(rowData)) {
+      sheet.getRange(row, syncedCol).setValue("SKIP");
+      Logger.log(`Skipped row ${row} on ${sheet.getName()}: missing Name or Phone Number`);
+      continue;
+    }
 
     const ok = sendCrmSheetRowToCRM(rowData, sheet.getName());
     if (ok) {
@@ -128,13 +153,22 @@ function syncCrmSheetAllUnsyncedRows(sheet) {
 
 function syncCrmSheetRow(sheet, rowIndex) {
   const headers = getCrmSheetHeaders(sheet);
+  if (!hasCrmSheetLeadHeaders(headers)) {
+    Logger.log(`Skipped sheet ${sheet.getName()}: missing Name or Phone Number header`);
+    return;
+  }
   const syncedCol = ensureCrmSheetSyncedColumn(sheet, headers);
   const syncedValue = sheet.getRange(rowIndex, syncedCol).getValue();
   const config = getCrmSheetSyncConfig();
-  if (syncedValue === config.syncedMarker) return;
+  if (syncedValue === config.syncedMarker || syncedValue === "SKIP") return;
 
   const rowData = getCrmSheetRowAsObject(sheet, headers, rowIndex);
   if (!rowData) return;
+  if (!hasCrmSheetRequiredLeadFields(rowData)) {
+    sheet.getRange(rowIndex, syncedCol).setValue("SKIP");
+    Logger.log(`Skipped row ${rowIndex} on ${sheet.getName()}: missing Name or Phone Number`);
+    return;
+  }
 
   const ok = sendCrmSheetRowToCRM(rowData, sheet.getName());
   if (ok) sheet.getRange(rowIndex, syncedCol).setValue(config.syncedMarker);
@@ -142,7 +176,7 @@ function syncCrmSheetRow(sheet, rowIndex) {
 
 function getCrmSheetHeaders(sheet) {
   const lastCol = sheet.getLastColumn();
-  return sheet.getRange(1, 1, 1, lastCol).getValues()[0];
+  return sheet.getRange(1, 1, 1, lastCol).getDisplayValues()[0];
 }
 
 function ensureCrmSheetSyncedColumn(sheet, headers) {
@@ -156,17 +190,43 @@ function ensureCrmSheetSyncedColumn(sheet, headers) {
 }
 
 function getCrmSheetRowAsObject(sheet, headers, rowIndex) {
-  const values = sheet.getRange(rowIndex, 1, 1, headers.length).getValues()[0];
+  const values = sheet.getRange(rowIndex, 1, 1, headers.length).getDisplayValues()[0];
   const obj = {};
   const config = getCrmSheetSyncConfig();
   headers.forEach((h, i) => {
-    if (h && String(h).trim() && String(h).trim() !== config.syncedColumnHeader) {
-      obj[String(h).trim()] = values[i] !== undefined ? String(values[i]).trim() : "";
+    const header = String(h || "").trim();
+    if (
+      header &&
+      header !== config.syncedColumnHeader &&
+      config.expectedLeadHeaders.includes(header)
+    ) {
+      obj[header] = values[i] !== undefined ? String(values[i]).trim() : "";
     }
   });
   // Skip empty rows
   const hasData = Object.values(obj).some(v => v !== "");
   return hasData ? obj : null;
+}
+
+function hasCrmSheetLeadHeaders(headers) {
+  const normalized = headers.map(h => String(h).toLowerCase().trim());
+  return normalized.includes("name") && normalized.includes("phone number");
+}
+
+function getCrmSheetValue(rowData, names) {
+  const keys = Object.keys(rowData);
+  for (const name of names) {
+    const target = String(name).toLowerCase().trim();
+    const key = keys.find(k => String(k).toLowerCase().trim() === target);
+    if (key && String(rowData[key] || "").trim()) return String(rowData[key]).trim();
+  }
+  return "";
+}
+
+function hasCrmSheetRequiredLeadFields(rowData) {
+  const name = getCrmSheetValue(rowData, ["Name"]);
+  const phone = getCrmSheetValue(rowData, ["Phone Number"]);
+  return Boolean(name && phone);
 }
 
 function sendCrmSheetRowToCRM(rowData, sheetName) {
