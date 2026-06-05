@@ -3,6 +3,7 @@ import cors from "cors";
 import { config } from "./config/env.js";
 import { connectDB } from "./config/db.js";
 import { hydrateStoreFromMongo } from "./models/store.js";
+import { seedAdminUser } from "./models/users.js";
 
 import publicRoutes from "./routes/public.js";
 import authRoutes from "./routes/auth.js";
@@ -45,6 +46,7 @@ app.use((err, _req, res, _next) => {
 
 connectDB()
   .then(async () => {
+    await seedAdminUser();
     await hydrateStoreFromMongo();
     app.listen(config.port, () => {
       console.log(`JK Sales CRM backend → http://localhost:${config.port}`);
