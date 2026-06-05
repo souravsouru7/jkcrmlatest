@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { money, shortDate, STAGES, SOURCES } from "@/lib/utils";
+import { FOLLOW_UP_TYPES, shortDate, STAGES, SOURCES } from "@/lib/utils";
 import Badge from "@/components/Badge";
 import type { Lead, Stage } from "@/lib/types";
 
@@ -22,6 +22,7 @@ export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [query, setQuery] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [activeLead, setActiveLead] = useState<Lead | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -73,6 +74,34 @@ export default function LeadsPage() {
     }
   }
 
+  async function handleLogInteraction(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!activeLead) return;
+
+    setSaving(true);
+    const fd = new FormData(e.currentTarget);
+    const due = String(fd.get("due") || new Date().toISOString().slice(0, 10));
+    const type = String(fd.get("type") || "Call");
+    const outcome = String(fd.get("outcome") || "").trim();
+    const notes = String(fd.get("notes") || "").trim();
+
+    try {
+      await api.createFollowUp({ leadId: activeLead.id, type, due, outcome, notes });
+      setLeads((prev) => prev.map((lead) =>
+        lead.id === activeLead.id
+          ? { ...lead, nextFollowUp: due, lastActivity: `${type} logged`, updatedAt: new Date().toISOString() }
+          : lead
+      ));
+    } catch {
+      setLeads((prev) => prev.map((lead) =>
+        lead.id === activeLead.id ? { ...lead, nextFollowUp: due } : lead
+      ));
+    } finally {
+      setSaving(false);
+      setActiveLead(null);
+    }
+  }
+
   return (
     <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 max-w-[1400px] mx-auto">
       {/* Page header */}
@@ -111,30 +140,31 @@ export default function LeadsPage() {
 
       {/* Table */}
       <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
-        <table className="w-full min-w-[640px]">
+        <table className="w-full min-w-[900px]">
           <thead>
             <tr className="border-b border-slate-800">
               <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3.5">Client</th>
+              <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5">Contact</th>
               <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5 hidden md:table-cell">Project</th>
               <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5 hidden lg:table-cell">Source</th>
-              <th className="text-right text-xs font-semibold text-slate-500 px-4 py-3.5">Budget</th>
               <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5 hidden xl:table-cell">Follow-up</th>
               <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5">Stage</th>
               <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5 hidden sm:table-cell">Priority</th>
+              <th className="text-right text-xs font-semibold text-slate-500 px-5 py-3.5">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800">
             {loading ? (
               Array.from({ length: 6 }).map((_, i) => (
                 <tr key={i}>
-                  <td colSpan={7} className="px-5 py-3">
+                  <td colSpan={8} className="px-5 py-3">
                     <div className="h-8 bg-slate-800 rounded animate-pulse" />
                   </td>
                 </tr>
               ))
             ) : filtered.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-5 py-16 text-center text-slate-600 text-sm">
+                <td colSpan={8} className="px-5 py-16 text-center text-slate-600 text-sm">
                   {query ? `No leads matching "${query}"` : "No leads yet. Add your first lead."}
                 </td>
               </tr>
@@ -153,6 +183,21 @@ export default function LeadsPage() {
                       </div>
                     </div>
                   </td>
+                  {/* Contact */}
+                  <td className="px-4 py-3.5">
+                    <div className="flex flex-col gap-1">
+                      <a href={`tel:${lead.phone}`} className="text-teal-400 hover:text-teal-300 text-xs font-medium transition">
+                        {lead.phone}
+                      </a>
+                      {lead.email ? (
+                        <a href={`mailto:${lead.email}`} className="text-slate-500 hover:text-slate-300 text-xs truncate max-w-[160px] transition">
+                          {lead.email}
+                        </a>
+                      ) : (
+                        <span className="text-slate-600 text-xs">No email</span>
+                      )}
+                    </div>
+                  </td>
                   {/* Project */}
                   <td className="px-4 py-3.5 hidden md:table-cell">
                     <span className="text-slate-400 text-sm">{lead.project}</span>
@@ -160,10 +205,6 @@ export default function LeadsPage() {
                   {/* Source */}
                   <td className="px-4 py-3.5 hidden lg:table-cell">
                     <span className="text-slate-500 text-xs bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-full">{lead.source}</span>
-                  </td>
-                  {/* Budget */}
-                  <td className="px-4 py-3.5 text-right">
-                    <span className="font-semibold text-teal-400 text-sm">{money(lead.budget)}</span>
                   </td>
                   {/* Follow-up */}
                   <td className="px-4 py-3.5 hidden xl:table-cell">
@@ -189,6 +230,16 @@ export default function LeadsPage() {
                       <div className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_DOT[lead.priority] ?? "bg-slate-500"}`} />
                       <span className="text-slate-400 text-xs">{lead.priority}</span>
                     </div>
+                  </td>
+                  {/* Action */}
+                  <td className="px-5 py-3.5 text-right">
+                    <button
+                      type="button"
+                      onClick={() => setActiveLead(lead)}
+                      className="inline-flex items-center justify-center bg-slate-800 hover:bg-teal-600 text-slate-300 hover:text-white text-xs font-semibold px-3 py-2 rounded-lg transition"
+                    >
+                      Log
+                    </button>
                   </td>
                 </tr>
               ))
@@ -288,6 +339,72 @@ export default function LeadsPage() {
                   className="flex-1 bg-teal-600 hover:bg-teal-500 text-white font-semibold py-2.5 rounded-lg transition text-sm disabled:opacity-60 shadow-lg shadow-teal-900/30"
                 >
                   {saving ? "Creating…" : "Create Lead"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {activeLead && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setActiveLead(null)} />
+          <div className="relative bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl">
+            <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-slate-800">
+              <div className="min-w-0">
+                <h2 className="text-lg font-bold text-white truncate">{activeLead.name}</h2>
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-1">
+                  <a href={`tel:${activeLead.phone}`} className="text-teal-400 hover:text-teal-300">{activeLead.phone}</a>
+                  {activeLead.email && (
+                    <a href={`mailto:${activeLead.email}`} className="text-slate-400 hover:text-slate-300">{activeLead.email}</a>
+                  )}
+                </div>
+              </div>
+              <button
+                onClick={() => setActiveLead(null)}
+                className="text-slate-500 hover:text-white transition p-1 rounded-lg hover:bg-slate-800"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            <form onSubmit={handleLogInteraction} className="px-6 py-5 space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className={labelCls}>Activity</label>
+                  <select name="type" defaultValue="Call" className={selectCls}>
+                    {FOLLOW_UP_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <label className={labelCls}>Next Follow-up</label>
+                  <input name="due" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} className={inputCls} />
+                </div>
+              </div>
+              <div>
+                <label className={labelCls}>Outcome</label>
+                <input name="outcome" className={inputCls} placeholder="Connected, no answer, asked for quote..." />
+              </div>
+              <div>
+                <label className={labelCls}>Notes</label>
+                <textarea name="notes" rows={3} className={`${inputCls} resize-none`} placeholder="Call details, requirement, commitment..." />
+              </div>
+              <div className="flex items-center gap-3 pt-1">
+                <button
+                  type="button"
+                  onClick={() => setActiveLead(null)}
+                  className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-lg transition text-sm"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 bg-teal-600 hover:bg-teal-500 text-white font-semibold py-2.5 rounded-lg transition text-sm disabled:opacity-60"
+                >
+                  {saving ? "Saving..." : "Save Log"}
                 </button>
               </div>
             </form>

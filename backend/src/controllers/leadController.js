@@ -1,4 +1,4 @@
-import store from "../models/store.js";
+import store, { deletePersistedLead, persistFollowUp, persistLead } from "../models/store.js";
 
 const STAGES = ["New Lead", "Contacted", "Qualified", "Site Visit", "Quotation", "Negotiation", "Won", "Lost"];
 const PRIORITIES = ["Hot", "Warm", "Cold"];
@@ -25,7 +25,7 @@ export function getLeadById(req, res) {
   return res.json(lead);
 }
 
-export function createLead(req, res) {
+export async function createLead(req, res) {
   const { name, phone, location, source, project, budget, stage, priority, nextFollowUp, notes, email } = req.body;
 
   if (!name || !phone || !location || !source || !project) {
@@ -56,7 +56,7 @@ export function createLead(req, res) {
   store.leads.unshift(lead);
 
   // Auto-create first follow-up
-  store.followUps.unshift({
+  const followUp = {
     id: Date.now() + 1,
     leadId: lead.id,
     type: "First Call",
@@ -65,12 +65,15 @@ export function createLead(req, res) {
     outcome: "Qualify requirement and budget",
     notes: "",
     createdAt: now,
-  });
+  };
+  store.followUps.unshift(followUp);
+
+  await Promise.all([persistLead(lead), persistFollowUp(followUp)]);
 
   return res.status(201).json(lead);
 }
 
-export function updateLead(req, res) {
+export async function updateLead(req, res) {
   const lead = store.leads.find((l) => l.id === Number(req.params.id));
   if (!lead) return res.status(404).json({ error: "Lead not found" });
 
@@ -79,11 +82,12 @@ export function updateLead(req, res) {
     if (req.body[key] !== undefined) lead[key] = req.body[key];
   });
   lead.updatedAt = new Date().toISOString();
+  await persistLead(lead);
 
   return res.json(lead);
 }
 
-export function updateStage(req, res) {
+export async function updateStage(req, res) {
   const lead = store.leads.find((l) => l.id === Number(req.params.id));
   if (!lead) return res.status(404).json({ error: "Lead not found" });
 
@@ -94,13 +98,15 @@ export function updateStage(req, res) {
   lead.lastActivity = `Moved to ${stage}`;
   if (stage === "Lost" && lostReason) lead.lostReason = lostReason;
   lead.updatedAt = new Date().toISOString();
+  await persistLead(lead);
 
   return res.json(lead);
 }
 
-export function deleteLead(req, res) {
+export async function deleteLead(req, res) {
   const idx = store.leads.findIndex((l) => l.id === Number(req.params.id));
   if (idx === -1) return res.status(404).json({ error: "Lead not found" });
   store.leads.splice(idx, 1);
+  await deletePersistedLead(req.params.id);
   return res.json({ message: "Lead deleted" });
 }

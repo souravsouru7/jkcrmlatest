@@ -1,4 +1,4 @@
-import store from "../models/store.js";
+import store, { persistFollowUp, persistLead } from "../models/store.js";
 
 const TYPES = ["Call", "WhatsApp", "Email", "Site Visit", "Quotation Discussion", "First Call", "Booking Call", "Other"];
 const STATUSES = ["Pending", "Completed", "Overdue"];
@@ -14,7 +14,7 @@ export function getFollowUps(req, res) {
   return res.json({ followUps, total: followUps.length });
 }
 
-export function createFollowUp(req, res) {
+export async function createFollowUp(req, res) {
   const { leadId, type, due, outcome, notes } = req.body;
 
   if (!leadId || !due) {
@@ -39,11 +39,12 @@ export function createFollowUp(req, res) {
   // Update lead's next follow-up date
   lead.nextFollowUp = due;
   lead.updatedAt = new Date().toISOString();
+  await Promise.all([persistFollowUp(followUp), persistLead(lead)]);
 
   return res.status(201).json(followUp);
 }
 
-export function completeFollowUp(req, res) {
+export async function completeFollowUp(req, res) {
   const followUp = store.followUps.find((f) => f.id === Number(req.params.id));
   if (!followUp) return res.status(404).json({ error: "Follow-up not found" });
 
@@ -55,12 +56,15 @@ export function completeFollowUp(req, res) {
   if (lead) {
     lead.lastActivity = `Follow-up completed: ${followUp.type}`;
     lead.updatedAt = new Date().toISOString();
+    await persistLead(lead);
   }
+
+  await persistFollowUp(followUp);
 
   return res.json(followUp);
 }
 
-export function updateFollowUp(req, res) {
+export async function updateFollowUp(req, res) {
   const followUp = store.followUps.find((f) => f.id === Number(req.params.id));
   if (!followUp) return res.status(404).json({ error: "Follow-up not found" });
 
@@ -68,6 +72,7 @@ export function updateFollowUp(req, res) {
   allowed.forEach((key) => {
     if (req.body[key] !== undefined) followUp[key] = req.body[key];
   });
+  await persistFollowUp(followUp);
 
   return res.json(followUp);
 }

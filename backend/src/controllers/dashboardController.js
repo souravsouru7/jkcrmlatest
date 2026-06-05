@@ -44,6 +44,7 @@ export function getDashboard(_req, res) {
     },
     stageBreakdown,
     sourceBreakdown,
+    leads: store.leads,
     priorityLeads: store.leads.filter((l) => l.priority === "Hot" && !["Won", "Lost"].includes(l.stage)),
     upcomingFollowUps: store.followUps
       .filter((f) => f.status === "Pending")

@@ -1,4 +1,4 @@
-import store from "../models/store.js";
+import store, { persistFollowUp, persistLead } from "../models/store.js";
 import { config } from "../config/env.js";
 
 const STAGES = ["New Lead", "Contacted", "Qualified", "Site Visit", "Quotation", "Negotiation", "Won", "Lost"];
@@ -22,7 +22,7 @@ function isRateLimited(ip) {
   return entry.count > LIMIT;
 }
 
-export function submitLead(req, res) {
+export async function submitLead(req, res) {
   // API key check
   const key = req.headers["x-api-key"] || req.query.key;
   if (key !== config.publicApiKey) {
@@ -65,7 +65,7 @@ export function submitLead(req, res) {
   store.leads.unshift(lead);
 
   // Auto first follow-up
-  store.followUps.unshift({
+  const followUp = {
     id: Date.now() + 1,
     leadId: lead.id,
     type: "First Call",
@@ -74,7 +74,10 @@ export function submitLead(req, res) {
     outcome: "First contact from website enquiry",
     notes: "",
     createdAt: now,
-  });
+  };
+  store.followUps.unshift(followUp);
+
+  await Promise.all([persistLead(lead), persistFollowUp(followUp)]);
 
   return res.status(201).json({ success: true, message: "Thank you! We will contact you shortly." });
 }
@@ -146,17 +149,24 @@ function mapPriority(quality, isPositive) {
   const q = String(quality || "").toLowerCase().trim();
   const pos = String(isPositive || "").toLowerCase().trim();
   if (q === "hot" || pos === "yes" || pos === "true" || pos === "1") return "Hot";
-  if (q === "cold") return "Cold";
+  if (q === "cold" || q === "negative" || pos === "no" || pos === "false" || pos === "0") return "Cold";
   return "Warm";
 }
 
 function parseSheetDate(value) {
   if (!value) return null;
+  const text = String(value).trim();
+  const ddmmyyyy = text.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/);
+  if (ddmmyyyy) {
+    const [, day, month, year] = ddmmyyyy;
+    const parsed = new Date(Number(year), Number(month) - 1, Number(day));
+    return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
+  }
   const parsed = new Date(value);
   return Number.isNaN(parsed.getTime()) ? null : parsed.toISOString();
 }
 
-export function googleSheetWebhook(req, res) {
+export async function googleSheetWebhook(req, res) {
   const secret = req.headers["x-sheet-secret"] || req.query.secret;
   if (secret !== SHEET_SECRET) {
     return res.status(401).json({ error: "Invalid webhook secret" });
@@ -186,6 +196,7 @@ export function googleSheetWebhook(req, res) {
   const noteParts = [];
   if (f.date) noteParts.push(`Sheet Date: ${f.date}`);
   if (f.dob) noteParts.push(`DOB: ${f.dob}`);
+  if (f.budget) noteParts.push(`Estimated Budget: ${f.budget}`);
   if (f.quality) noteParts.push(`Quality: ${f.quality}`);
   if (f.qualityType) noteParts.push(`Quality Type: ${f.qualityType}`);
   if (f.comments) noteParts.push(`Initial Comments: ${f.comments}`);
@@ -213,7 +224,19 @@ export function googleSheetWebhook(req, res) {
     location: f.location ? String(f.location).trim() : "",
     source:   mapPlatform(f.platform),
     project:  f.project  ? String(f.project).trim()  : "",
-    budget:   Number(String(f.budget || "0").replace(/[^0-9.]/g, "")) || 0,
+    budget:   0,
+    estimatedBudget: f.budget ? String(f.budget).trim() : "",
+    sheetDate: f.date ? String(f.date).trim() : "",
+    dob: f.dob ? String(f.dob).trim() : "",
+    quality: f.quality ? String(f.quality).trim() : "",
+    qualityType: f.qualityType ? String(f.qualityType).trim() : "",
+    initialComments: f.comments ? String(f.comments).trim() : "",
+    call1: f.call1 ? String(f.call1).trim() : "",
+    call2: f.call2 ? String(f.call2).trim() : "",
+    call3: f.call3 ? String(f.call3).trim() : "",
+    call4: f.call4 ? String(f.call4).trim() : "",
+    call5: f.call5 ? String(f.call5).trim() : "",
+    call6: f.call6 ? String(f.call6).trim() : "",
     stage,
     priority: mapPriority(f.quality, f.isPositive),
     owner:    f.calledBy ? String(f.calledBy).trim() : "Sales Admin",
@@ -227,7 +250,7 @@ export function googleSheetWebhook(req, res) {
 
   store.leads.unshift(lead);
 
-  store.followUps.unshift({
+  const followUp = {
     id: Date.now() + 1,
     leadId: lead.id,
     type: "First Call",
@@ -236,7 +259,10 @@ export function googleSheetWebhook(req, res) {
     outcome: "Lead from Google Sheet",
     notes: "",
     createdAt: now,
-  });
+  };
+  store.followUps.unshift(followUp);
+
+  await Promise.all([persistLead(lead), persistFollowUp(followUp)]);
 
   console.log(`[Google Sheet Sync] New lead: ${lead.name} (${lead.phone}) | source: ${lead.source} | priority: ${lead.priority}`);
   return res.status(201).json({ success: true, leadId: lead.id, message: "Lead created from Google Sheet" });

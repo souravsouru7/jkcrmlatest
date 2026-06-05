@@ -2,6 +2,7 @@ import express from "express";
 import cors from "cors";
 import { config } from "./config/env.js";
 import { connectDB } from "./config/db.js";
+import { hydrateStoreFromMongo } from "./models/store.js";
 
 import publicRoutes from "./routes/public.js";
 import authRoutes from "./routes/auth.js";
@@ -43,7 +44,8 @@ app.use((err, _req, res, _next) => {
 });
 
 connectDB()
-  .then(() => {
+  .then(async () => {
+    await hydrateStoreFromMongo();
     app.listen(config.port, () => {
       console.log(`JK Sales CRM backend → http://localhost:${config.port}`);
     });

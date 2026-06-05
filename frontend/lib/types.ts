@@ -19,6 +19,18 @@ export type Lead = {
   source: string;
   project: string;
   budget: number;
+  estimatedBudget?: string;
+  sheetDate?: string;
+  dob?: string;
+  quality?: string;
+  qualityType?: string;
+  initialComments?: string;
+  call1?: string;
+  call2?: string;
+  call3?: string;
+  call4?: string;
+  call5?: string;
+  call6?: string;
   stage: Stage;
   priority: Priority;
   owner: string;

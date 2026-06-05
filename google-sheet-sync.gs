@@ -12,13 +12,15 @@
 // 8. Grant permissions when prompted
 // ============================================================
 
-// ---- CONFIG (edit these) ------------------------------------
-const SPREADSHEET_ID = "13wKh5QPhdqi8KlqyYabpTR_1JxdGTCZrTqYfLrE0dD8";
-const CRM_WEBHOOK_URL = "https://api.jktaskmangement.online/api/public/google-sheet";
-const WEBHOOK_SECRET  = "jk-sheet-sync-2026";   // must match SHEET_WEBHOOK_SECRET in backend .env
-const SYNCED_COLUMN_HEADER = "CRM Synced";       // header added automatically to track synced rows
-const SYNCED_MARKER = "YES";
-// -------------------------------------------------------------
+function getCrmSheetSyncConfig() {
+  return {
+    spreadsheetId: "13wKh5QPhdqi8KlqyYabpTR_1JxdGTCZrTqYfLrE0dD8",
+    webhookUrl: "https://api.jktaskmangement.online/api/public/google-sheet",
+    webhookSecret: "jk-sheet-sync-2026", // must match SHEET_WEBHOOK_SECRET in backend .env
+    syncedColumnHeader: "CRM Synced",
+    syncedMarker: "YES",
+  };
+}
 
 /**
  * Run this ONCE manually from the Apps Script editor to install the CRM sync triggers.
@@ -33,7 +35,8 @@ function setupCrmSheetSync() {
     }
   });
 
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const config = getCrmSheetSyncConfig();
+  const ss = SpreadsheetApp.openById(config.spreadsheetId);
 
   // If the sheet is linked to a Google Form, use onFormSubmit for real-time sync
   ScriptApp.newTrigger("onCrmSheetNewRow")
@@ -56,8 +59,9 @@ function setupCrmSheetSync() {
  * It verifies that this script can open your sheet and read headers.
  */
 function testCrmSheetAccess() {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
-  const sheet = ss.getSheetByName(SHEET_NAME) || ss.getSheets()[0];
+  const config = getCrmSheetSyncConfig();
+  const ss = SpreadsheetApp.openById(config.spreadsheetId);
+  const sheet = ss.getSheets()[0];
   const headers = getCrmSheetHeaders(sheet);
   Logger.log("Spreadsheet: " + ss.getName());
   Logger.log("Sheet: " + sheet.getName());
@@ -78,7 +82,8 @@ function onCrmSheetNewRow(e) {
  */
 function onCrmSheetChange(e) {
   if (e.changeType !== "INSERT_ROW" && e.changeType !== "EDIT") return;
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const config = getCrmSheetSyncConfig();
+  const ss = SpreadsheetApp.openById(config.spreadsheetId);
   ss.getSheets().forEach(sheet => syncCrmSheetAllUnsyncedRows(sheet));
 }
 
@@ -86,7 +91,8 @@ function onCrmSheetChange(e) {
  * Manually run this from the editor to sync ALL existing unsynced rows at once.
  */
 function syncCrmSheetAllNow() {
-  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  const config = getCrmSheetSyncConfig();
+  const ss = SpreadsheetApp.openById(config.spreadsheetId);
   let synced = 0;
   ss.getSheets().forEach(sheet => {
     synced += syncCrmSheetAllUnsyncedRows(sheet);
@@ -101,17 +107,18 @@ function syncCrmSheetAllUnsyncedRows(sheet) {
   const syncedCol = ensureCrmSheetSyncedColumn(sheet, headers);
   const lastRow = sheet.getLastRow();
   let count = 0;
+  const config = getCrmSheetSyncConfig();
 
   for (let row = 2; row <= lastRow; row++) {
     const syncedValue = sheet.getRange(row, syncedCol).getValue();
-    if (syncedValue === SYNCED_MARKER) continue;
+    if (syncedValue === config.syncedMarker) continue;
 
     const rowData = getCrmSheetRowAsObject(sheet, headers, row);
     if (!rowData) continue;
 
     const ok = sendCrmSheetRowToCRM(rowData, sheet.getName());
     if (ok) {
-      sheet.getRange(row, syncedCol).setValue(SYNCED_MARKER);
+      sheet.getRange(row, syncedCol).setValue(config.syncedMarker);
       count++;
       Utilities.sleep(300); // avoid hammering the server
     }
@@ -123,13 +130,14 @@ function syncCrmSheetRow(sheet, rowIndex) {
   const headers = getCrmSheetHeaders(sheet);
   const syncedCol = ensureCrmSheetSyncedColumn(sheet, headers);
   const syncedValue = sheet.getRange(rowIndex, syncedCol).getValue();
-  if (syncedValue === SYNCED_MARKER) return;
+  const config = getCrmSheetSyncConfig();
+  if (syncedValue === config.syncedMarker) return;
 
   const rowData = getCrmSheetRowAsObject(sheet, headers, rowIndex);
   if (!rowData) return;
 
   const ok = sendCrmSheetRowToCRM(rowData, sheet.getName());
-  if (ok) sheet.getRange(rowIndex, syncedCol).setValue(SYNCED_MARKER);
+  if (ok) sheet.getRange(rowIndex, syncedCol).setValue(config.syncedMarker);
 }
 
 function getCrmSheetHeaders(sheet) {
@@ -138,10 +146,11 @@ function getCrmSheetHeaders(sheet) {
 }
 
 function ensureCrmSheetSyncedColumn(sheet, headers) {
-  let col = headers.findIndex(h => String(h).trim() === SYNCED_COLUMN_HEADER);
+  const config = getCrmSheetSyncConfig();
+  let col = headers.findIndex(h => String(h).trim() === config.syncedColumnHeader);
   if (col === -1) {
     col = headers.length;
-    sheet.getRange(1, col + 1).setValue(SYNCED_COLUMN_HEADER);
+    sheet.getRange(1, col + 1).setValue(config.syncedColumnHeader);
   }
   return col + 1; // 1-based
 }
@@ -149,8 +158,9 @@ function ensureCrmSheetSyncedColumn(sheet, headers) {
 function getCrmSheetRowAsObject(sheet, headers, rowIndex) {
   const values = sheet.getRange(rowIndex, 1, 1, headers.length).getValues()[0];
   const obj = {};
+  const config = getCrmSheetSyncConfig();
   headers.forEach((h, i) => {
-    if (h && String(h).trim() && String(h).trim() !== SYNCED_COLUMN_HEADER) {
+    if (h && String(h).trim() && String(h).trim() !== config.syncedColumnHeader) {
       obj[String(h).trim()] = values[i] !== undefined ? String(values[i]).trim() : "";
     }
   });
@@ -160,16 +170,17 @@ function getCrmSheetRowAsObject(sheet, headers, rowIndex) {
 }
 
 function sendCrmSheetRowToCRM(rowData, sheetName) {
+  const config = getCrmSheetSyncConfig();
   const payload = JSON.stringify({ row: rowData, sheetName });
   const options = {
     method: "post",
     contentType: "application/json",
-    headers: { "x-sheet-secret": WEBHOOK_SECRET },
+    headers: { "x-sheet-secret": config.webhookSecret },
     payload: payload,
     muteHttpExceptions: true,
   };
   try {
-    const response = UrlFetchApp.fetch(CRM_WEBHOOK_URL, options);
+    const response = UrlFetchApp.fetch(config.webhookUrl, options);
     const code = response.getResponseCode();
     if (code === 200 || code === 201) {
       Logger.log("Lead sent: " + (rowData["Name"] || rowData["name"] || JSON.stringify(rowData)));
