@@ -2,27 +2,24 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { FOLLOW_UP_TYPES, shortDate, STAGES, SOURCES } from "@/lib/utils";
+import { FOLLOW_UP_TYPES, shortDate, STAGES, SOURCES, money } from "@/lib/utils";
 import Badge from "@/components/Badge";
+import { EmptyState, PageHeader, Section, Skeleton, buttonGhost, buttonPrimary, buttonSecondary, inputCls, labelCls, pageWrap, selectCls } from "@/components/CrmDesign";
 import type { Lead, Stage } from "@/lib/types";
 
 const PRIORITY_DOT: Record<string, string> = {
-  Hot:  "bg-rose-400",
-  Warm: "bg-amber-400",
-  Cold: "bg-slate-500",
+  Hot: "bg-red-500",
+  Warm: "bg-amber-500",
+  Cold: "bg-slate-400",
 };
-
-const inputCls =
-  "w-full bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30 transition";
-const selectCls =
-  "w-full bg-slate-800 border border-slate-700 rounded-lg text-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 transition";
-const labelCls = "block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider";
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [query, setQuery] = useState("");
+  const [stageFilter, setStageFilter] = useState("All");
   const [showForm, setShowForm] = useState(false);
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
+  const [loggingLead, setLoggingLead] = useState<Lead | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -39,14 +36,17 @@ export default function LeadsPage() {
     }
   }
 
-  const filtered = leads.filter((l) =>
-    [l.name, l.phone, l.location, l.source, l.project, l.stage, l.priority]
-      .join(" ").toLowerCase().includes(query.toLowerCase())
-  );
+  const filtered = leads.filter((lead) => {
+    const matchesQuery = [lead.name, lead.phone, lead.email, lead.location, lead.source, lead.project, lead.stage, lead.priority]
+      .join(" ")
+      .toLowerCase()
+      .includes(query.toLowerCase());
+    return matchesQuery && (stageFilter === "All" || lead.stage === stageFilter);
+  });
 
   async function handleStage(id: number, stage: string) {
     await api.updateStage(id, stage).catch(() => {});
-    setLeads((prev) => prev.map((l) => l.id === id ? { ...l, stage: stage as Stage } : l));
+    setLeads((prev) => prev.map((lead) => lead.id === id ? { ...lead, stage: stage as Stage } : lead));
   }
 
   async function handleCreate(e: FormEvent<HTMLFormElement>) {
@@ -59,13 +59,23 @@ export default function LeadsPage() {
       setLeads((prev) => [lead as Lead, ...prev]);
     } catch {
       const newLead: Lead = {
-        id: Date.now(), name: String(body.name), phone: String(body.phone), email: "",
-        location: String(body.location), source: String(body.source), project: String(body.project),
-        budget: Number(body.budget), stage: (body.stage as Stage) || "New Lead",
-        priority: (body.priority as Lead["priority"]) || "Warm", owner: "Sales Admin",
-        nextFollowUp: String(body.nextFollowUp), lastActivity: "Lead created",
-        notes: String(body.notes || ""), lostReason: null,
-        createdAt: new Date().toISOString(), updatedAt: new Date().toISOString(),
+        id: Date.now(),
+        name: String(body.name),
+        phone: String(body.phone),
+        email: String(body.email || ""),
+        location: String(body.location),
+        source: String(body.source),
+        project: String(body.project),
+        budget: Number(body.budget),
+        stage: (body.stage as Stage) || "New Lead",
+        priority: (body.priority as Lead["priority"]) || "Warm",
+        owner: "Sales Admin",
+        nextFollowUp: String(body.nextFollowUp || ""),
+        lastActivity: "Lead created",
+        notes: String(body.notes || ""),
+        lostReason: null,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
       };
       setLeads((prev) => [newLead, ...prev]);
     } finally {
@@ -76,341 +86,236 @@ export default function LeadsPage() {
 
   async function handleLogInteraction(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    if (!activeLead) return;
-
+    if (!loggingLead) return;
     setSaving(true);
     const fd = new FormData(e.currentTarget);
     const due = String(fd.get("due") || new Date().toISOString().slice(0, 10));
     const type = String(fd.get("type") || "Call");
     const outcome = String(fd.get("outcome") || "").trim();
     const notes = String(fd.get("notes") || "").trim();
-
     try {
-      await api.createFollowUp({ leadId: activeLead.id, type, due, outcome, notes });
-      setLeads((prev) => prev.map((lead) =>
-        lead.id === activeLead.id
-          ? { ...lead, nextFollowUp: due, lastActivity: `${type} logged`, updatedAt: new Date().toISOString() }
-          : lead
-      ));
+      await api.createFollowUp({ leadId: loggingLead.id, type, due, outcome, notes });
+      setLeads((prev) => prev.map((lead) => lead.id === loggingLead.id ? { ...lead, nextFollowUp: due, lastActivity: `${type} logged`, updatedAt: new Date().toISOString() } : lead));
     } catch {
-      setLeads((prev) => prev.map((lead) =>
-        lead.id === activeLead.id ? { ...lead, nextFollowUp: due } : lead
-      ));
+      setLeads((prev) => prev.map((lead) => lead.id === loggingLead.id ? { ...lead, nextFollowUp: due } : lead));
     } finally {
       setSaving(false);
-      setActiveLead(null);
+      setLoggingLead(null);
     }
   }
 
+  const pipelineValue = filtered.reduce((sum, lead) => sum + (lead.budget || 0), 0);
+  const hotCount = leads.filter((lead) => lead.priority === "Hot").length;
+
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 max-w-[1400px] mx-auto">
-      {/* Page header */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Leads</h1>
-          <p className="text-slate-500 text-xs sm:text-sm mt-0.5">{leads.length} total leads</p>
+    <div className={pageWrap}>
+      <PageHeader
+        eyebrow="Lead management"
+        title="Leads"
+        subtitle={`${leads.length} total leads - ${hotCount} hot - ${money(pipelineValue)} visible pipeline`}
+        action={<button onClick={() => setShowForm(true)} className={buttonPrimary}>+ Add Lead</button>}
+      />
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_auto]">
+        <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+          <input className={inputCls} placeholder="Search client, city, source, phone, stage..." value={query} onChange={(e) => setQuery(e.target.value)} />
         </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="shrink-0 flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold px-3 sm:px-4 py-2.5 rounded-lg transition shadow-lg shadow-teal-900/30"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-4 h-4">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          <span className="hidden sm:inline">Add Lead</span>
-          <span className="sm:hidden">Add</span>
-        </button>
-      </div>
-
-      {/* Search + filters bar */}
-      <div className="flex items-center gap-3">
-        <div className="relative flex-1">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input
-            className="w-full bg-slate-900 border border-slate-700 rounded-lg text-white placeholder-slate-500 pl-9 pr-4 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30 transition"
-            placeholder="Search name, city, stage…"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
+        <div className="flex gap-2 overflow-x-auto">
+          {["All", ...STAGES].map((stage) => (
+            <button key={stage} onClick={() => setStageFilter(stage)} className={`shrink-0 rounded-xl border px-4 py-2.5 text-sm font-semibold ${stageFilter === stage ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"}`}>
+              {stage}
+            </button>
+          ))}
         </div>
-        <p className="text-slate-500 text-sm">{filtered.length} results</p>
       </div>
 
-      {/* Table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
-        <table className="w-full min-w-[900px]">
-          <thead>
-            <tr className="border-b border-slate-800">
-              <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3.5">Client</th>
-              <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5">Contact</th>
-              <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5 hidden md:table-cell">Project</th>
-              <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5 hidden lg:table-cell">Source</th>
-              <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5 hidden xl:table-cell">Follow-up</th>
-              <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5">Stage</th>
-              <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5 hidden sm:table-cell">Priority</th>
-              <th className="text-right text-xs font-semibold text-slate-500 px-5 py-3.5">Action</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-800">
-            {loading ? (
-              Array.from({ length: 6 }).map((_, i) => (
-                <tr key={i}>
-                  <td colSpan={8} className="px-5 py-3">
-                    <div className="h-8 bg-slate-800 rounded animate-pulse" />
-                  </td>
-                </tr>
-              ))
-            ) : filtered.length === 0 ? (
-              <tr>
-                <td colSpan={8} className="px-5 py-16 text-center text-slate-600 text-sm">
-                  {query ? `No leads matching "${query}"` : "No leads yet. Add your first lead."}
-                </td>
-              </tr>
-            ) : (
-              filtered.map((lead) => (
-                <tr key={lead.id} className="hover:bg-slate-800/40 transition-colors">
-                  {/* Client */}
-                  <td className="px-5 py-3.5">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 font-bold text-xs shrink-0">
-                        {lead.name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-semibold text-white text-sm truncate">{lead.name}</p>
-                        <p className="text-slate-500 text-xs truncate">{lead.phone} · {lead.location}</p>
-                      </div>
-                    </div>
-                  </td>
-                  {/* Contact */}
-                  <td className="px-4 py-3.5">
-                    <div className="flex flex-col gap-1">
-                      <a href={`tel:${lead.phone}`} className="text-teal-400 hover:text-teal-300 text-xs font-medium transition">
-                        {lead.phone}
-                      </a>
-                      {lead.email ? (
-                        <a href={`mailto:${lead.email}`} className="text-slate-500 hover:text-slate-300 text-xs truncate max-w-[160px] transition">
-                          {lead.email}
-                        </a>
-                      ) : (
-                        <span className="text-slate-600 text-xs">No email</span>
-                      )}
-                    </div>
-                  </td>
-                  {/* Project */}
-                  <td className="px-4 py-3.5 hidden md:table-cell">
-                    <span className="text-slate-400 text-sm">{lead.project}</span>
-                  </td>
-                  {/* Source */}
-                  <td className="px-4 py-3.5 hidden lg:table-cell">
-                    <span className="text-slate-500 text-xs bg-slate-800 border border-slate-700 px-2.5 py-1 rounded-full">{lead.source}</span>
-                  </td>
-                  {/* Follow-up */}
-                  <td className="px-4 py-3.5 hidden xl:table-cell">
-                    <span className="text-slate-500 text-sm">
-                      {lead.nextFollowUp ? shortDate(lead.nextFollowUp) : "—"}
-                    </span>
-                  </td>
-                  {/* Stage */}
-                  <td className="px-4 py-3.5">
-                    <select
-                      value={lead.stage}
-                      onChange={(e) => handleStage(lead.id, e.target.value)}
-                      className="bg-transparent text-xs font-medium outline-none py-1 text-slate-300 hover:text-white transition cursor-pointer"
-                    >
-                      {STAGES.map((s) => (
-                        <option key={s} value={s} className="bg-slate-900 text-white">{s}</option>
-                      ))}
-                    </select>
-                  </td>
-                  {/* Priority */}
-                  <td className="px-4 py-3.5 hidden sm:table-cell">
-                    <div className="flex items-center gap-2">
-                      <div className={`w-2 h-2 rounded-full shrink-0 ${PRIORITY_DOT[lead.priority] ?? "bg-slate-500"}`} />
-                      <span className="text-slate-400 text-xs">{lead.priority}</span>
-                    </div>
-                  </td>
-                  {/* Action */}
-                  <td className="px-5 py-3.5 text-right">
-                    <button
-                      type="button"
-                      onClick={() => setActiveLead(lead)}
-                      className="inline-flex items-center justify-center bg-slate-800 hover:bg-teal-600 text-slate-300 hover:text-white text-xs font-semibold px-3 py-2 rounded-lg transition"
-                    >
-                      Log
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <Section title="Lead workspace" subtitle="Open a client for one-screen history, communication, quotation, and notes.">
+        {loading ? (
+          <div className="space-y-3 p-5">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-20" />)}</div>
+        ) : filtered.length === 0 ? (
+          <EmptyState title="No leads found" subtitle="Try another filter or add your first lead." />
+        ) : (
+          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            {filtered.map((lead) => (
+              <div key={lead.id} onClick={() => setActiveLead(lead)} className="grid cursor-pointer gap-4 px-5 py-4 hover:bg-slate-50 lg:grid-cols-[minmax(260px,1.4fr)_1fr_220px_220px] lg:items-center dark:hover:bg-slate-800/60">
+                <div className="flex min-w-0 items-center gap-3">
+                  <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-sm font-bold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
+                    {lead.name.slice(0, 2).toUpperCase()}
+                    <span className={`absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full ring-2 ring-white dark:ring-slate-900 ${PRIORITY_DOT[lead.priority] ?? "bg-slate-400"}`} />
+                  </div>
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-slate-950 dark:text-white">{lead.name}</p>
+                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">{lead.phone} - {lead.location}</p>
+                  </div>
+                </div>
 
-      {/* Add Lead Modal */}
-      {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowForm(false)} />
-          <div className="relative bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-xl max-h-[90vh] overflow-y-auto shadow-2xl">
-            {/* Modal header */}
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800 sticky top-0 bg-slate-900 z-10">
-              <h2 className="text-lg font-bold text-white">Add Sales Lead</h2>
-              <button
-                onClick={() => setShowForm(false)}
-                className="text-slate-500 hover:text-white transition p-1 rounded-lg hover:bg-slate-800"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{lead.project}</p>
+                  <p className="truncate text-xs text-slate-500 dark:text-slate-400">{lead.source} - {lead.owner}</p>
+                </div>
 
-            <form onSubmit={handleCreate} className="px-4 sm:px-6 py-5 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                <div className="sm:col-span-2">
-                  <label className={labelCls}>Client Name *</label>
-                  <input name="name" type="text" required className={inputCls} placeholder="Full name" />
-                </div>
-                <div>
-                  <label className={labelCls}>Phone *</label>
-                  <input name="phone" type="text" required className={inputCls} placeholder="+91 98765 43210" />
-                </div>
-                <div>
-                  <label className={labelCls}>Email</label>
-                  <input name="email" type="email" className={inputCls} placeholder="email@example.com" />
-                </div>
-                <div>
-                  <label className={labelCls}>Location / City *</label>
-                  <input name="location" type="text" required className={inputCls} placeholder="Mumbai, Delhi…" />
-                </div>
-                <div>
-                  <label className={labelCls}>Project Type *</label>
-                  <input name="project" type="text" required className={inputCls} placeholder="Residential, Commercial…" />
-                </div>
-                <div>
-                  <label className={labelCls}>Expected Budget (₹) *</label>
-                  <input name="budget" type="number" required min="0" className={inputCls} placeholder="500000" />
-                </div>
-                <div>
-                  <label className={labelCls}>Next Follow-up Date *</label>
-                  <input name="nextFollowUp" type="date" required className={inputCls} />
-                </div>
-                <div className="sm:col-span-2">
-                  <label className={labelCls}>Source *</label>
-                  <select name="source" required className={selectCls}>
-                    {SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+                <div className="flex items-center gap-2">
+                  <select value={lead.stage} onClick={(e) => e.stopPropagation()} onChange={(e) => handleStage(lead.id, e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-blue-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
+                    {STAGES.map((stage) => <option key={stage} value={stage}>{stage}</option>)}
                   </select>
+                  <Badge value={lead.priority} />
                 </div>
-                <div>
-                  <label className={labelCls}>Stage</label>
-                  <select name="stage" className={selectCls}>
-                    {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className={labelCls}>Priority</label>
-                  <select name="priority" className={selectCls}>
-                    {["Hot", "Warm", "Cold"].map((p) => <option key={p} value={p}>{p}</option>)}
-                  </select>
-                </div>
-                <div className="sm:col-span-2">
-                  <label className={labelCls}>Notes</label>
-                  <textarea
-                    name="notes"
-                    rows={3}
-                    placeholder="Requirements, timeline, decision maker…"
-                    className={`${inputCls} resize-none`}
-                  />
+
+                <div className="flex items-center justify-start gap-2 lg:justify-end" onClick={(e) => e.stopPropagation()}>
+                  <a href={`tel:${lead.phone}`} className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Call</a>
+                  <a href={`https://wa.me/${lead.phone.replace(/\D/g, "")}`} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">WhatsApp</a>
+                  <button onClick={() => setLoggingLead(lead)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Log</button>
                 </div>
               </div>
-
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-lg transition text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 bg-teal-600 hover:bg-teal-500 text-white font-semibold py-2.5 rounded-lg transition text-sm disabled:opacity-60 shadow-lg shadow-teal-900/30"
-                >
-                  {saving ? "Creating…" : "Create Lead"}
-                </button>
-              </div>
-            </form>
+            ))}
           </div>
-        </div>
-      )}
+        )}
+      </Section>
 
       {activeLead && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setActiveLead(null)} />
-          <div className="relative bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-lg shadow-2xl">
-            <div className="flex items-start justify-between gap-4 px-6 py-4 border-b border-slate-800">
-              <div className="min-w-0">
-                <h2 className="text-lg font-bold text-white truncate">{activeLead.name}</h2>
-                <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs mt-1">
-                  <a href={`tel:${activeLead.phone}`} className="text-teal-400 hover:text-teal-300">{activeLead.phone}</a>
-                  {activeLead.email && (
-                    <a href={`mailto:${activeLead.email}`} className="text-slate-400 hover:text-slate-300">{activeLead.email}</a>
-                  )}
-                </div>
-              </div>
-              <button
-                onClick={() => setActiveLead(null)}
-                className="text-slate-500 hover:text-white transition p-1 rounded-lg hover:bg-slate-800"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            </div>
+        <LeadDetailDrawer lead={activeLead} onClose={() => setActiveLead(null)} onLog={() => { setLoggingLead(activeLead); setActiveLead(null); }} />
+      )}
 
-            <form onSubmit={handleLogInteraction} className="px-6 py-5 space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className={labelCls}>Activity</label>
-                  <select name="type" defaultValue="Call" className={selectCls}>
-                    {FOLLOW_UP_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}
-                  </select>
-                </div>
-                <div>
-                  <label className={labelCls}>Next Follow-up</label>
-                  <input name="due" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} className={inputCls} />
-                </div>
-              </div>
-              <div>
-                <label className={labelCls}>Outcome</label>
-                <input name="outcome" className={inputCls} placeholder="Connected, no answer, asked for quote..." />
-              </div>
-              <div>
-                <label className={labelCls}>Notes</label>
-                <textarea name="notes" rows={3} className={`${inputCls} resize-none`} placeholder="Call details, requirement, commitment..." />
-              </div>
-              <div className="flex items-center gap-3 pt-1">
-                <button
-                  type="button"
-                  onClick={() => setActiveLead(null)}
-                  className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-lg transition text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  disabled={saving}
-                  className="flex-1 bg-teal-600 hover:bg-teal-500 text-white font-semibold py-2.5 rounded-lg transition text-sm disabled:opacity-60"
-                >
-                  {saving ? "Saving..." : "Save Log"}
-                </button>
-              </div>
-            </form>
+      {showForm && (
+        <Modal title="Add Sales Lead" onClose={() => setShowForm(false)} max="max-w-2xl">
+          <form onSubmit={handleCreate} className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Client Name *"><input name="name" required className={inputCls} placeholder="Full name" /></Field>
+              <Field label="Phone *"><input name="phone" required className={inputCls} placeholder="+91 98765 43210" /></Field>
+              <Field label="Email"><input name="email" type="email" className={inputCls} placeholder="client@example.com" /></Field>
+              <Field label="Location / City *"><input name="location" required className={inputCls} placeholder="Mumbai, Delhi..." /></Field>
+              <Field label="Project Type *"><input name="project" required className={inputCls} placeholder="Residential, commercial..." /></Field>
+              <Field label="Expected Budget *"><input name="budget" type="number" min="0" required className={inputCls} placeholder="500000" /></Field>
+              <Field label="Next Follow-up *"><input name="nextFollowUp" type="date" required className={inputCls} /></Field>
+              <Field label="Source *"><select name="source" required className={selectCls}>{SOURCES.map((source) => <option key={source}>{source}</option>)}</select></Field>
+              <Field label="Stage"><select name="stage" className={selectCls}>{STAGES.map((stage) => <option key={stage}>{stage}</option>)}</select></Field>
+              <Field label="Priority"><select name="priority" className={selectCls}>{["Hot", "Warm", "Cold"].map((priority) => <option key={priority}>{priority}</option>)}</select></Field>
+              <div className="sm:col-span-2"><Field label="Notes"><textarea name="notes" rows={3} className={inputCls} placeholder="Requirements, timeline, decision maker..." /></Field></div>
+            </div>
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={() => setShowForm(false)} className={buttonSecondary}>Cancel</button>
+              <button type="submit" disabled={saving} className={buttonPrimary}>{saving ? "Creating..." : "Create Lead"}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {loggingLead && (
+        <Modal title={`Log activity - ${loggingLead.name}`} onClose={() => setLoggingLead(null)}>
+          <form onSubmit={handleLogInteraction} className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Activity"><select name="type" defaultValue="Call" className={selectCls}>{FOLLOW_UP_TYPES.map((type) => <option key={type}>{type}</option>)}</select></Field>
+              <Field label="Next Follow-up"><input name="due" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} className={inputCls} /></Field>
+            </div>
+            <Field label="Outcome"><input name="outcome" className={inputCls} placeholder="Connected, asked for quote, no answer..." /></Field>
+            <Field label="Notes"><textarea name="notes" rows={3} className={inputCls} placeholder="Conversation details and commitment..." /></Field>
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={() => setLoggingLead(null)} className={buttonSecondary}>Cancel</button>
+              <button type="submit" disabled={saving} className={buttonPrimary}>{saving ? "Saving..." : "Save Log"}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label>{<span className={labelCls}>{label}</span>}{children}</label>;
+}
+
+function Modal({ title, children, onClose, max = "max-w-xl" }: { title: string; children: React.ReactNode; onClose: () => void; max?: string }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose} />
+      <div className={`relative max-h-[90vh] w-full ${max} overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900`}>
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4 dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="text-lg font-bold text-slate-950 dark:text-white">{title}</h2>
+          <button onClick={onClose} className={buttonGhost}>Close</button>
+        </div>
+        <div className="p-6">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function LeadDetailDrawer({ lead, onClose, onLog }: { lead: Lead; onClose: () => void; onLog: () => void }) {
+  const updates = [lead.initialComments, lead.call1, lead.call2, lead.call3, lead.call4, lead.call5, lead.call6, lead.notes].filter(Boolean);
+  return (
+    <div className="fixed inset-0 z-50">
+      <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" onClick={onClose} />
+      <aside className="absolute right-0 top-0 h-full w-full max-w-2xl overflow-y-auto border-l border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+        <div className="sticky top-0 z-10 border-b border-slate-100 bg-white/95 p-6 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
+          <div className="flex items-start justify-between gap-4">
+            <div className="min-w-0">
+              <p className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">Customer profile</p>
+              <h2 className="mt-1 truncate text-2xl font-bold text-slate-950 dark:text-white">{lead.name}</h2>
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{lead.project} - {lead.location}</p>
+            </div>
+            <button onClick={onClose} className={buttonGhost}>Close</button>
+          </div>
+          <div className="mt-5 flex flex-wrap gap-2">
+            <a href={`tel:${lead.phone}`} className={buttonPrimary}>Call</a>
+            <a href={`https://wa.me/${lead.phone.replace(/\D/g, "")}`} className="inline-flex items-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">WhatsApp</a>
+            {lead.email && <a href={`mailto:${lead.email}`} className={buttonSecondary}>Email</a>}
+            <button onClick={onLog} className={buttonSecondary}>Log Follow-up</button>
           </div>
         </div>
-      )}
+
+        <div className="space-y-5 p-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+            <Mini label="Stage" value={<Badge value={lead.stage} />} />
+            <Mini label="Priority" value={<Badge value={lead.priority} />} />
+            <Mini label="Budget" value={lead.estimatedBudget || money(lead.budget || 0)} />
+            <Mini label="Next Follow-up" value={shortDate(lead.nextFollowUp)} />
+          </div>
+
+          <Section title="Timeline activity feed" subtitle="Calls, notes, scope updates, quote events, and follow-up history.">
+            {updates.length ? (
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {updates.map((item, index) => (
+                  <div key={index} className="flex gap-3 px-5 py-4">
+                    <div className="mt-1 h-2.5 w-2.5 rounded-full bg-blue-600" />
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950 dark:text-white">{index === 0 ? "Initial requirement" : `Activity ${index}`}</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{item}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <EmptyState title="No activity yet" subtitle="Log a call or follow-up to build the timeline." />
+            )}
+          </Section>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Info title="Follow-up History" lines={[lead.lastActivity || "No recent activity", `Next: ${shortDate(lead.nextFollowUp)}`]} />
+            <Info title="Site Visit History" lines={[lead.stage === "Site Visit" ? "Site visit stage active" : "No visit linked on this screen", "Schedule from Site Visits"]} />
+            <Info title="Scope Sheet" lines={[lead.sheetDate ? `Sheet date: ${lead.sheetDate}` : "Scope sheet available after site visit", lead.quality || "Requirements not scored"]} />
+            <Info title="Quotations" lines={[lead.stage === "Quotation" ? "Quotation in progress" : "No quote linked on this screen", "Create quote from Quotations"]} />
+          </div>
+        </div>
+      </aside>
+    </div>
+  );
+}
+
+function Mini({ label, value }: { label: string; value: React.ReactNode }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
+      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p>
+      <div className="mt-2 text-sm font-bold text-slate-950 dark:text-white">{value}</div>
+    </div>
+  );
+}
+
+function Info({ title, lines }: { title: string; lines: string[] }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
+      <p className="text-sm font-bold text-slate-950 dark:text-white">{title}</p>
+      <div className="mt-3 space-y-2">
+        {lines.map((line) => <p key={line} className="text-sm text-slate-500 dark:text-slate-400">{line}</p>)}
+      </div>
     </div>
   );
 }

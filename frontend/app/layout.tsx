@@ -14,7 +14,7 @@ export const viewport: Viewport = {
   maximumScale: 1,
   userScalable: false,
   viewportFit: "cover",
-  themeColor: "#0f172a",
+  themeColor: "#f8fafc",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
@@ -25,7 +25,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
       </head>
-      <body className="bg-slate-900 text-slate-100 antialiased overscroll-none">
+      <body className="bg-slate-50 text-slate-900 antialiased overscroll-none dark:bg-slate-950 dark:text-slate-100">
         <CapacitorInit />
         {children}
       </body>

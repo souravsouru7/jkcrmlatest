@@ -1,33 +1,18 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
-import { shortDate, FOLLOW_UP_TYPES } from "@/lib/utils";
+import { FOLLOW_UP_TYPES, shortDate } from "@/lib/utils";
 import Badge from "@/components/Badge";
 import { notifyFollowUpDue } from "@/lib/notifications";
+import { EmptyState, PageHeader, Section, Skeleton, buttonPrimary, buttonSecondary, inputCls, labelCls, pageWrap, selectCls } from "@/components/CrmDesign";
 import type { FollowUp, Lead } from "@/lib/types";
-
-const FILTERS = ["all", "overdue", "pending", "completed"] as const;
-type Filter = typeof FILTERS[number];
-
-const inputCls =
-  "w-full bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30 transition";
-const selectCls =
-  "w-full bg-slate-800 border border-slate-700 rounded-lg text-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 transition";
-const labelCls = "block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider";
-
-const STATUS_COLOR: Record<string, string> = {
-  overdue:   "bg-rose-500/10 text-rose-400 border-rose-500/20",
-  pending:   "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  completed: "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  all:       "bg-teal-500/10 text-teal-400 border-teal-500/20",
-};
 
 export default function FollowUpsPage() {
   const [followUps, setFollowUps] = useState<FollowUp[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [filter, setFilter] = useState<Filter>("all");
   const [showForm, setShowForm] = useState(false);
+  const [reschedule, setReschedule] = useState<FollowUp | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -37,8 +22,8 @@ export default function FollowUpsPage() {
     ]).finally(() => setLoading(false));
   }, []);
 
-  function leadName(id: number) {
-    return leads.find((l) => l.id === id)?.name ?? `Lead #${id}`;
+  function lead(id: number) {
+    return leads.find((item) => item.id === id);
   }
 
   async function handleComplete(id: number) {
@@ -56,193 +41,165 @@ export default function FollowUpsPage() {
       const name = leads.find((l) => String(l.id) === String(body.leadId))?.name ?? "Lead";
       await notifyFollowUpDue(name, String(body.type));
     } catch {
-      // silent
     } finally {
       setShowForm(false);
     }
   }
 
-  const counts = {
-    all: followUps.length,
-    overdue: followUps.filter((f) => f.status === "Overdue").length,
-    pending: followUps.filter((f) => f.status === "Pending").length,
-    completed: followUps.filter((f) => f.status === "Completed").length,
-  };
+  function handleReschedule(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!reschedule) return;
+    const fd = new FormData(e.currentTarget);
+    const due = String(fd.get("due"));
+    setFollowUps((prev) => prev.map((f) => f.id === reschedule.id ? { ...f, due, status: "Pending" } : f));
+    setReschedule(null);
+  }
 
-  const visible = filter === "all" ? followUps : followUps.filter((f) => f.status.toLowerCase() === filter);
+  const grouped = useMemo(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+    const dayAfter = new Date(today);
+    dayAfter.setDate(today.getDate() + 2);
+
+    return {
+      overdue: followUps.filter((f) => f.status === "Overdue"),
+      today: followUps.filter((f) => {
+        const due = new Date(f.due);
+        due.setHours(0, 0, 0, 0);
+        return f.status !== "Completed" && due.getTime() === today.getTime();
+      }),
+      tomorrow: followUps.filter((f) => {
+        const due = new Date(f.due);
+        due.setHours(0, 0, 0, 0);
+        return f.status !== "Completed" && due.getTime() === tomorrow.getTime();
+      }),
+      upcoming: followUps.filter((f) => {
+        const due = new Date(f.due);
+        due.setHours(0, 0, 0, 0);
+        return f.status !== "Completed" && due.getTime() >= dayAfter.getTime();
+      }),
+    };
+  }, [followUps]);
+
+  const pending = followUps.filter((f) => f.status !== "Completed").length;
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 max-w-[1400px] mx-auto">
-      {/* Page header */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Follow-ups</h1>
-          <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-            {counts.overdue > 0
-              ? <span className="text-rose-400 font-medium">{counts.overdue} overdue</span>
-              : "All clear"}
-            {" · "}{counts.pending} pending
-          </p>
-        </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="shrink-0 flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold px-3 sm:px-4 py-2.5 rounded-lg transition shadow-lg shadow-teal-900/30"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2.5} className="w-4 h-4">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-          </svg>
-          <span className="hidden sm:inline">Add Follow-up</span>
-          <span className="sm:hidden">Add</span>
-        </button>
+    <div className={pageWrap}>
+      <PageHeader
+        eyebrow="Task manager"
+        title="Follow-ups"
+        subtitle={`${pending} open tasks - ${grouped.overdue.length} overdue - swipe-style actions exposed as one-tap controls on web.`}
+        action={<button onClick={() => setShowForm(true)} className={buttonPrimary}>+ Add Follow-up</button>}
+      />
+
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-2">
+        <FollowSection title="Overdue" tone="red" items={grouped.overdue} loading={loading} lead={lead} onComplete={handleComplete} onReschedule={setReschedule} />
+        <FollowSection title="Today" tone="blue" items={grouped.today} loading={loading} lead={lead} onComplete={handleComplete} onReschedule={setReschedule} />
+        <FollowSection title="Tomorrow" tone="amber" items={grouped.tomorrow} loading={loading} lead={lead} onComplete={handleComplete} onReschedule={setReschedule} />
+        <FollowSection title="Upcoming" tone="slate" items={grouped.upcoming} loading={loading} lead={lead} onComplete={handleComplete} onReschedule={setReschedule} />
       </div>
 
-      {/* Status filter tabs */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {FILTERS.map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-lg border text-sm font-medium capitalize transition ${
-              filter === f
-                ? STATUS_COLOR[f]
-                : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800"
-            }`}
-          >
-            {f}
-            {counts[f] > 0 && (
-              <span className="ml-1.5 text-xs opacity-70">({counts[f]})</span>
-            )}
-          </button>
-        ))}
-      </div>
-
-      {/* Follow-up list */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
-        {loading ? (
-          <div className="p-5 space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div key={i} className="h-16 bg-slate-800 rounded-lg animate-pulse" />
-            ))}
-          </div>
-        ) : visible.length === 0 ? (
-          <div className="p-14 text-center">
-            <p className="text-slate-600 text-sm">No follow-ups in this category</p>
-          </div>
-        ) : (
-          <table className="w-full min-w-[520px]">
-            <thead>
-              <tr className="border-b border-slate-800">
-                <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3.5">Lead</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5 hidden sm:table-cell">Type</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5">Due Date</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5 hidden md:table-cell">Outcome</th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5">Status</th>
-                <th className="text-right text-xs font-semibold text-slate-500 px-5 py-3.5">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800">
-              {visible.map((f) => (
-                <tr
-                  key={f.id}
-                  className={`hover:bg-slate-800/40 transition-colors ${
-                    f.status === "Overdue" ? "bg-rose-500/5" : ""
-                  }`}
-                >
-                  <td className="px-5 py-3.5">
-                    <p className="font-semibold text-white text-sm">{leadName(f.leadId)}</p>
-                  </td>
-                  <td className="px-4 py-3.5 hidden sm:table-cell">
-                    <span className="text-teal-400 text-sm font-medium">{f.type}</span>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <span className={`text-sm font-medium ${f.status === "Overdue" ? "text-rose-400" : "text-slate-400"}`}>
-                      {shortDate(f.due)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 hidden md:table-cell">
-                    <span className="text-slate-500 text-sm">{f.outcome || "—"}</span>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <Badge value={f.status} />
-                  </td>
-                  <td className="px-5 py-3.5 text-right">
-                    {f.status !== "Completed" && (
-                      <button
-                        onClick={() => handleComplete(f.id)}
-                        className="text-xs font-semibold text-emerald-400 border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg transition"
-                      >
-                        Mark Done
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
-      </div>
-
-      {/* Add Follow-up Modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div className="absolute inset-0 bg-black/70 backdrop-blur-sm" onClick={() => setShowForm(false)} />
-          <div className="relative bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-              <h2 className="text-lg font-bold text-white">Add Follow-up</h2>
-              <button
-                onClick={() => setShowForm(false)}
-                className="text-slate-500 hover:text-white transition p-1 rounded-lg hover:bg-slate-800"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={2} className="w-5 h-5">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
+        <Modal title="Add Follow-up" onClose={() => setShowForm(false)}>
+          <form onSubmit={handleCreate} className="space-y-4">
+            <Field label="Lead *"><select name="leadId" required className={selectCls}><option value="">Select lead</option>{leads.filter((l) => !["Won", "Lost"].includes(l.stage)).map((l) => <option key={l.id} value={l.id}>{l.name} - {l.project}</option>)}</select></Field>
+            <Field label="Type"><select name="type" className={selectCls}>{FOLLOW_UP_TYPES.map((type) => <option key={type}>{type}</option>)}</select></Field>
+            <Field label="Due Date *"><input name="due" type="date" required className={inputCls} /></Field>
+            <Field label="Goal / Outcome"><input name="outcome" className={inputCls} placeholder="What should happen?" /></Field>
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={() => setShowForm(false)} className={buttonSecondary}>Cancel</button>
+              <button type="submit" className={buttonPrimary}>Save Follow-up</button>
             </div>
+          </form>
+        </Modal>
+      )}
 
-            <form onSubmit={handleCreate} className="px-6 py-5 space-y-4">
-              <div>
-                <label className={labelCls}>Lead *</label>
-                <select name="leadId" required className={selectCls}>
-                  <option value="">Select lead</option>
-                  {leads.filter((l) => !["Won", "Lost"].includes(l.stage)).map((l) => (
-                    <option key={l.id} value={l.id}>{l.name} — {l.project}</option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className={labelCls}>Type</label>
-                <select name="type" className={selectCls}>
-                  {FOLLOW_UP_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className={labelCls}>Due Date *</label>
-                <input name="due" type="date" required className={inputCls} />
-              </div>
-              <div>
-                <label className={labelCls}>Goal / Outcome</label>
-                <input name="outcome" type="text" placeholder="What should happen?" className={inputCls} />
-              </div>
+      {reschedule && (
+        <Modal title="Reschedule follow-up" onClose={() => setReschedule(null)}>
+          <form onSubmit={handleReschedule} className="space-y-4">
+            <p className="text-sm text-slate-600 dark:text-slate-300">Move {lead(reschedule.leadId)?.name || `Lead #${reschedule.leadId}`} to a new due date.</p>
+            <Field label="New due date"><input name="due" type="date" required defaultValue={reschedule.due.slice(0, 10)} className={inputCls} /></Field>
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={() => setReschedule(null)} className={buttonSecondary}>Cancel</button>
+              <button type="submit" className={buttonPrimary}>Reschedule</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+}
 
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-lg transition text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-teal-600 hover:bg-teal-500 text-white font-semibold py-2.5 rounded-lg transition text-sm shadow-lg shadow-teal-900/30"
-                >
-                  Save Follow-up
-                </button>
-              </div>
-            </form>
-          </div>
+function FollowSection({ title, tone, items, loading, lead, onComplete, onReschedule }: {
+  title: string;
+  tone: "red" | "blue" | "amber" | "slate";
+  items: FollowUp[];
+  loading: boolean;
+  lead: (id: number) => Lead | undefined;
+  onComplete: (id: number) => void;
+  onReschedule: (item: FollowUp) => void;
+}) {
+  const toneCls = {
+    red: "bg-red-50 text-red-700 dark:bg-red-500/10 dark:text-red-300",
+    blue: "bg-blue-50 text-blue-700 dark:bg-blue-500/10 dark:text-blue-300",
+    amber: "bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300",
+    slate: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-300",
+  }[tone];
+
+  return (
+    <Section title={title} subtitle={`${items.length} item${items.length === 1 ? "" : "s"}`} action={<span className={`rounded-full px-3 py-1 text-xs font-bold ${toneCls}`}>{items.length}</span>}>
+      {loading ? (
+        <div className="space-y-3 p-5">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-24" />)}</div>
+      ) : items.length === 0 ? (
+        <EmptyState title={`No ${title.toLowerCase()} follow-ups`} />
+      ) : (
+        <div className="space-y-3 p-4">
+          {items.map((f) => {
+            const client = lead(f.leadId);
+            return (
+              <article key={f.id} className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="min-w-0">
+                    <p className="truncate text-sm font-bold text-slate-950 dark:text-white">{client?.name || `Lead #${f.leadId}`}</p>
+                    <p className="mt-1 truncate text-sm text-slate-500 dark:text-slate-400">{f.type} - {f.outcome || "No outcome added"}</p>
+                  </div>
+                  <Badge value={f.status} />
+                </div>
+                {f.notes && <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">{f.notes}</p>}
+                <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
+                  <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Due {shortDate(f.due)}</span>
+                  <div className="flex gap-2">
+                    {client && <a href={`tel:${client.phone}`} className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Call</a>}
+                    <button onClick={() => onComplete(f.id)} className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">Complete</button>
+                    <button onClick={() => onReschedule(f)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Reschedule</button>
+                  </div>
+                </div>
+              </article>
+            );
+          })}
         </div>
       )}
+    </Section>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label>{<span className={labelCls}>{label}</span>}{children}</label>;
+}
+
+function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
+          <h2 className="text-lg font-bold text-slate-950 dark:text-white">{title}</h2>
+          <button onClick={onClose} className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">Close</button>
+        </div>
+        <div className="p-6">{children}</div>
+      </div>
     </div>
   );
 }

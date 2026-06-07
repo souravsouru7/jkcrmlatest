@@ -4,24 +4,24 @@ import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { money, shortDate, STAGES } from "@/lib/utils";
 import Badge from "@/components/Badge";
+import { EmptyState, PageHeader, Skeleton, buttonPrimary, pageWrap } from "@/components/CrmDesign";
 import type { Lead, Stage } from "@/lib/types";
 
-const PIPELINE_STAGES: Stage[] = [
-  "New Lead", "Contacted", "Qualified", "Site Visit", "Quotation", "Negotiation",
-];
+const PIPELINE_STAGES: Stage[] = ["New Lead", "Contacted", "Qualified", "Site Visit", "Quotation", "Negotiation", "Won"];
 
-const STAGE_COLOR: Record<string, string> = {
-  "New Lead":    "bg-slate-500/10 text-slate-400 border-slate-500/20",
-  "Contacted":   "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  "Qualified":   "bg-violet-500/10 text-violet-400 border-violet-500/20",
-  "Site Visit":  "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  "Quotation":   "bg-orange-500/10 text-orange-400 border-orange-500/20",
-  "Negotiation": "bg-teal-500/10 text-teal-400 border-teal-500/20",
+const STAGE_TONE: Record<string, string> = {
+  "New Lead": "border-sky-200 bg-sky-50 text-sky-700 dark:border-sky-500/20 dark:bg-sky-500/10 dark:text-sky-300",
+  Contacted: "border-blue-200 bg-blue-50 text-blue-700 dark:border-blue-500/20 dark:bg-blue-500/10 dark:text-blue-300",
+  Qualified: "border-violet-200 bg-violet-50 text-violet-700 dark:border-violet-500/20 dark:bg-violet-500/10 dark:text-violet-300",
+  "Site Visit": "border-cyan-200 bg-cyan-50 text-cyan-700 dark:border-cyan-500/20 dark:bg-cyan-500/10 dark:text-cyan-300",
+  Quotation: "border-amber-200 bg-amber-50 text-amber-700 dark:border-amber-500/20 dark:bg-amber-500/10 dark:text-amber-300",
+  Negotiation: "border-indigo-200 bg-indigo-50 text-indigo-700 dark:border-indigo-500/20 dark:bg-indigo-500/10 dark:text-indigo-300",
+  Won: "border-emerald-200 bg-emerald-50 text-emerald-700 dark:border-emerald-500/20 dark:bg-emerald-500/10 dark:text-emerald-300",
 };
 
 export default function PipelinePage() {
   const [leads, setLeads] = useState<Lead[]>([]);
-  const [activeStage, setActiveStage] = useState<Stage>("New Lead");
+  const [draggingId, setDraggingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -31,125 +31,106 @@ export default function PipelinePage() {
       .finally(() => setLoading(false));
   }, []);
 
-  async function handleStage(id: number, stage: string) {
+  async function moveLead(id: number, stage: Stage) {
     await api.updateStage(id, stage).catch(() => {});
-    setLeads((prev) => prev.map((l) => l.id === id ? { ...l, stage: stage as Stage } : l));
+    setLeads((prev) => prev.map((lead) => lead.id === id ? { ...lead, stage } : lead));
   }
 
-  const stageLeads = leads.filter((l) => l.stage === activeStage);
-  const stageValue = stageLeads.reduce((s, l) => s + l.budget, 0);
-  const totalPipeline = leads
-    .filter((l) => PIPELINE_STAGES.includes(l.stage))
-    .reduce((s, l) => s + l.budget, 0);
+  const activeLeads = leads.filter((lead) => PIPELINE_STAGES.includes(lead.stage));
+  const totalValue = activeLeads.reduce((sum, lead) => sum + (lead.budget || 0), 0);
+  const wonValue = leads.filter((lead) => lead.stage === "Won").reduce((sum, lead) => sum + (lead.budget || 0), 0);
 
   return (
-    <div className="p-6 space-y-5 max-w-[1400px] mx-auto">
-      {/* Page header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">Pipeline</h1>
-          <p className="text-slate-500 text-sm mt-0.5">
-            {leads.filter((l) => PIPELINE_STAGES.includes(l.stage)).length} active leads ·{" "}
-            <span className="text-teal-400 font-medium">{money(totalPipeline)}</span> total value
-          </p>
-        </div>
+    <div className={pageWrap}>
+      <PageHeader
+        eyebrow="Kanban pipeline"
+        title="Pipeline"
+        subtitle={`${activeLeads.length} active opportunities - ${money(totalValue)} pipeline - ${money(wonValue)} won`}
+        action={<a href="/leads" className={buttonPrimary}>+ Add Lead</a>}
+      />
+
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <Metric label="Average Deal" value={money(activeLeads.length ? totalValue / activeLeads.length : 0)} />
+        <Metric label="Won Revenue" value={money(wonValue)} />
+        <Metric label="Conversion Signal" value={`${leads.length ? Math.round((leads.filter((l) => l.stage === "Won").length / leads.length) * 100) : 0}%`} />
       </div>
 
-      {/* Stage selector tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
-        {PIPELINE_STAGES.map((stage) => {
-          const count = leads.filter((l) => l.stage === stage).length;
-          const value = leads.filter((l) => l.stage === stage).reduce((s, l) => s + l.budget, 0);
-          const isActive = activeStage === stage;
-          return (
-            <button
-              key={stage}
-              onClick={() => setActiveStage(stage)}
-              className={`shrink-0 flex flex-col items-start px-4 py-3 rounded-xl border text-left transition min-w-[130px] ${
-                isActive
-                  ? `${STAGE_COLOR[stage]} border-current`
-                  : "bg-slate-900 border-slate-800 text-slate-400 hover:bg-slate-800 hover:text-white"
-              }`}
-            >
-              <span className="text-xs font-semibold">{stage}</span>
-              <div className="flex items-center gap-2 mt-1.5">
-                <span className={`text-lg font-bold leading-none ${isActive ? "" : "text-white"}`}>{count}</span>
-                <span className="text-[10px] opacity-70">{money(value)}</span>
-              </div>
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Stage summary bar */}
-      <div className={`flex items-center justify-between rounded-xl border px-5 py-4 ${STAGE_COLOR[activeStage] || "bg-slate-900 border-slate-800"}`}>
-        <div>
-          <p className="font-semibold text-white text-base">{activeStage}</p>
-          <p className="text-slate-400 text-sm mt-0.5">{stageLeads.length} lead{stageLeads.length !== 1 ? "s" : ""} in this stage</p>
-        </div>
-        <div className="text-right">
-          <p className="text-xs text-slate-500 mb-0.5">Stage value</p>
-          <p className="font-bold text-teal-400 text-xl">{money(stageValue)}</p>
-        </div>
-      </div>
-
-      {/* Lead cards grid */}
       {loading ? (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {Array.from({ length: 6 }).map((_, i) => (
-            <div key={i} className="h-36 bg-slate-900 border border-slate-800 rounded-xl animate-pulse" />
-          ))}
-        </div>
-      ) : stageLeads.length === 0 ? (
-        <div className="bg-slate-900 border border-slate-800 border-dashed rounded-xl p-14 text-center">
-          <p className="text-slate-600 text-sm">No leads in {activeStage}</p>
-          <p className="text-slate-700 text-xs mt-1">Move leads here from other stages</p>
-        </div>
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-80" />)}</div>
       ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-          {stageLeads.map((lead) => (
-            <div key={lead.id} className="bg-slate-900 border border-slate-800 rounded-xl p-5 hover:border-slate-700 transition-colors">
-              <div className="flex items-start justify-between gap-2 mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-lg bg-teal-500/10 border border-teal-500/20 flex items-center justify-center text-teal-400 font-bold text-xs shrink-0">
-                    {lead.name.slice(0, 2).toUpperCase()}
-                  </div>
-                  <div className="min-w-0">
-                    <p className="font-semibold text-white text-sm leading-none">{lead.name}</p>
-                    <p className="text-slate-500 text-xs mt-1">{lead.project} · {lead.location}</p>
-                  </div>
-                </div>
-                <Badge value={lead.priority} className="shrink-0 text-[10px]" />
-              </div>
-
-              <div className="flex items-center justify-between mb-4">
-                <span className="font-bold text-teal-400 text-base">{money(lead.budget)}</span>
-                {lead.nextFollowUp && (
-                  <span className="text-slate-500 text-xs">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.8} className="w-3.5 h-3.5 inline mr-1 -mt-0.5">
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.75 3v2.25M17.25 3v2.25M3 18.75V7.5a2.25 2.25 0 012.25-2.25h13.5A2.25 2.25 0 0121 7.5v11.25m-18 0A2.25 2.25 0 005.25 21h13.5A2.25 2.25 0 0021 18.75m-18 0v-7.5A2.25 2.25 0 015.25 9h13.5A2.25 2.25 0 0121 11.25v7.5" />
-                    </svg>
-                    {shortDate(lead.nextFollowUp)}
-                  </span>
-                )}
-              </div>
-
-              <div className="flex items-center gap-2 pt-3 border-t border-slate-800">
-                <span className="text-slate-600 text-xs shrink-0">Move to:</span>
-                <select
-                  value={lead.stage}
-                  onChange={(e) => handleStage(lead.id, e.target.value)}
-                  className="flex-1 bg-transparent text-teal-400 text-xs font-semibold outline-none py-0.5 cursor-pointer hover:text-teal-300 transition"
+        <div className="overflow-x-auto pb-4">
+          <div className="grid min-w-[1280px] grid-cols-7 gap-4">
+            {PIPELINE_STAGES.map((stage) => {
+              const stageLeads = leads.filter((lead) => lead.stage === stage);
+              const value = stageLeads.reduce((sum, lead) => sum + (lead.budget || 0), 0);
+              return (
+                <section
+                  key={stage}
+                  onDragOver={(event) => event.preventDefault()}
+                  onDrop={() => {
+                    if (draggingId) moveLead(draggingId, stage);
+                    setDraggingId(null);
+                  }}
+                  className="min-h-[520px] rounded-2xl border border-slate-200 bg-slate-100/70 p-3 dark:border-slate-800 dark:bg-slate-900/60"
                 >
-                  {STAGES.map((s) => (
-                    <option key={s} value={s} className="bg-slate-900 text-white">{s}</option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          ))}
+                  <div className={`mb-3 rounded-2xl border p-3 ${STAGE_TONE[stage]}`}>
+                    <div className="flex items-center justify-between gap-2">
+                      <p className="text-sm font-bold">{stage}</p>
+                      <span className="rounded-full bg-white/70 px-2 py-0.5 text-xs font-bold text-slate-700 dark:bg-slate-950/50 dark:text-slate-200">{stageLeads.length}</span>
+                    </div>
+                    <p className="mt-1 text-xs font-semibold opacity-80">{money(value)}</p>
+                  </div>
+
+                  {stageLeads.length === 0 ? (
+                    <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-xs font-semibold text-slate-400 dark:border-slate-700">
+                      Drop leads here
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {stageLeads.map((lead) => (
+                        <article
+                          key={lead.id}
+                          draggable
+                          onDragStart={() => setDraggingId(lead.id)}
+                          onDragEnd={() => setDraggingId(null)}
+                          className="cursor-grab rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:-translate-y-0.5 hover:shadow-md active:cursor-grabbing dark:border-slate-800 dark:bg-slate-950"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="min-w-0">
+                              <p className="truncate text-sm font-bold text-slate-950 dark:text-white">{lead.name}</p>
+                              <p className="mt-1 truncate text-xs text-slate-500 dark:text-slate-400">{lead.project}</p>
+                            </div>
+                            <Badge value={lead.priority} className="text-[10px]" />
+                          </div>
+                          <p className="mt-4 text-lg font-bold tracking-tight text-slate-950 dark:text-white">{money(lead.budget || 0)}</p>
+                          <div className="mt-3 flex items-center justify-between gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
+                            <span className="truncate text-xs text-slate-500 dark:text-slate-400">{lead.location}</span>
+                            <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">{shortDate(lead.nextFollowUp)}</span>
+                          </div>
+                          <select value={lead.stage} onChange={(e) => moveLead(lead.id, e.target.value as Stage)} className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                            {STAGES.map((item) => <option key={item}>{item}</option>)}
+                          </select>
+                        </article>
+                      ))}
+                    </div>
+                  )}
+                </section>
+              );
+            })}
+          </div>
         </div>
       )}
+
+      {!loading && activeLeads.length === 0 && <EmptyState title="No active pipeline" subtitle="Create leads or move existing leads into pipeline stages." />}
+    </div>
+  );
+}
+
+function Metric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-900">
+      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">{label}</p>
+      <p className="mt-2 text-2xl font-bold text-slate-950 dark:text-white">{value}</p>
     </div>
   );
 }

@@ -17,6 +17,7 @@ function getCrmSheetSyncConfig() {
     spreadsheetId: "13wKh5QPhdqi8KlqyYabpTR_1JxdGTCZrTqYfLrE0dD8",
     webhookUrl: "https://api.jktaskmangement.online/api/public/google-sheet",
     webhookSecret: "jk-sheet-sync-2026", // must match SHEET_WEBHOOK_SECRET in backend .env
+    targetSheetName: "Meta Ads",
     syncedColumnHeader: "CRM Synced",
     syncedMarker: "YES",
     expectedLeadHeaders: [
@@ -77,7 +78,7 @@ function setupCrmSheetSync() {
 function testCrmSheetAccess() {
   const config = getCrmSheetSyncConfig();
   const ss = SpreadsheetApp.openById(config.spreadsheetId);
-  const sheet = ss.getSheets()[0];
+  const sheet = ss.getSheetByName(config.targetSheetName) || ss.getSheets()[0];
   const headers = getCrmSheetHeaders(sheet);
   Logger.log("Spreadsheet: " + ss.getName());
   Logger.log("Sheet: " + sheet.getName());
@@ -89,6 +90,8 @@ function testCrmSheetAccess() {
  */
 function onCrmSheetNewRow(e) {
   const sheet = e.range.getSheet();
+  const config = getCrmSheetSyncConfig();
+  if (sheet.getName() !== config.targetSheetName) return;
   const rowIndex = e.range.getRow();
   syncCrmSheetRow(sheet, rowIndex);
 }
@@ -100,7 +103,12 @@ function onCrmSheetChange(e) {
   if (e.changeType !== "INSERT_ROW" && e.changeType !== "EDIT") return;
   const config = getCrmSheetSyncConfig();
   const ss = SpreadsheetApp.openById(config.spreadsheetId);
-  ss.getSheets().forEach(sheet => syncCrmSheetAllUnsyncedRows(sheet));
+  const sheet = ss.getSheetByName(config.targetSheetName);
+  if (!sheet) {
+    Logger.log(`Sheet not found: ${config.targetSheetName}`);
+    return;
+  }
+  syncCrmSheetAllUnsyncedRows(sheet);
 }
 
 /**
@@ -109,11 +117,38 @@ function onCrmSheetChange(e) {
 function syncCrmSheetAllNow() {
   const config = getCrmSheetSyncConfig();
   const ss = SpreadsheetApp.openById(config.spreadsheetId);
-  let synced = 0;
-  ss.getSheets().forEach(sheet => {
-    synced += syncCrmSheetAllUnsyncedRows(sheet);
-  });
+  const sheet = ss.getSheetByName(config.targetSheetName);
+  if (!sheet) {
+    Logger.log(`Sheet not found: ${config.targetSheetName}`);
+    return;
+  }
+  const synced = syncCrmSheetAllUnsyncedRows(sheet);
   Logger.log(`Done! ${synced} new lead(s) sent to CRM.`);
+}
+
+/**
+ * Use this only when you want to resend old rows.
+ * It clears the CRM Synced column on the target sheet.
+ */
+function resetCrmSheetSyncStatus() {
+  const config = getCrmSheetSyncConfig();
+  const ss = SpreadsheetApp.openById(config.spreadsheetId);
+  const sheet = ss.getSheetByName(config.targetSheetName);
+  if (!sheet) {
+    Logger.log(`Sheet not found: ${config.targetSheetName}`);
+    return;
+  }
+
+  const headers = getCrmSheetHeaders(sheet);
+  const syncedCol = ensureCrmSheetSyncedColumn(sheet, headers);
+  const lastRow = sheet.getLastRow();
+  if (lastRow < 2) {
+    Logger.log("No rows to reset.");
+    return;
+  }
+
+  sheet.getRange(2, syncedCol, lastRow - 1, 1).clearContent();
+  Logger.log(`Reset CRM sync status for ${lastRow - 1} row(s) on ${sheet.getName()}.`);
 }
 
 // ---- Internal helpers ----------------------------------------

@@ -6,33 +6,19 @@ import { shortDate } from "@/lib/utils";
 import Badge from "@/components/Badge";
 import { ScopeSheetModal } from "@/components/ScopeSheetModal";
 import { notifySiteVisitReminder } from "@/lib/notifications";
-import type { SiteVisit, Lead, ScopeSheet } from "@/lib/types";
+import { EmptyState, PageHeader, Section, Skeleton, buttonPrimary, buttonSecondary, inputCls, labelCls, pageWrap, selectCls } from "@/components/CrmDesign";
+import type { Lead, ScopeSheet, SiteVisit } from "@/lib/types";
 
 const FILTERS = ["all", "scheduled", "completed", "rescheduled", "cancelled"] as const;
 type Filter = typeof FILTERS[number];
-
-const inputCls =
-  "w-full bg-slate-800 border border-slate-700 rounded-lg text-white placeholder-slate-500 px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/30 transition";
-const selectCls =
-  "w-full bg-slate-800 border border-slate-700 rounded-lg text-white px-3.5 py-2.5 text-sm outline-none focus:border-teal-500 transition";
-const labelCls =
-  "block text-xs font-semibold text-slate-400 mb-1.5 uppercase tracking-wider";
-
-const FILTER_COLOR: Record<string, string> = {
-  all:         "bg-teal-500/10 text-teal-400 border-teal-500/20",
-  scheduled:   "bg-blue-500/10 text-blue-400 border-blue-500/20",
-  completed:   "bg-emerald-500/10 text-emerald-400 border-emerald-500/20",
-  rescheduled: "bg-amber-500/10 text-amber-400 border-amber-500/20",
-  cancelled:   "bg-rose-500/10 text-rose-400 border-rose-500/20",
-};
 
 export default function SiteVisitsPage() {
   const [visits, setVisits] = useState<SiteVisit[]>([]);
   const [leads, setLeads] = useState<Lead[]>([]);
   const [filter, setFilter] = useState<Filter>("all");
   const [showForm, setShowForm] = useState(false);
-  const [loading, setLoading] = useState(true);
   const [scopeVisit, setScopeVisit] = useState<SiteVisit | null>(null);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     Promise.all([
@@ -41,16 +27,13 @@ export default function SiteVisitsPage() {
     ]).finally(() => setLoading(false));
   }, []);
 
-  function leadName(id: number) {
-    const l = leads.find((x) => x.id === id);
-    return l ? `${l.name} — ${l.project}` : `Lead #${id}`;
+  function lead(id: number) {
+    return leads.find((item) => item.id === id);
   }
 
   async function handleStatus(id: number, status: string) {
     await api.updateSiteVisit(id, { status }).catch(() => {});
-    setVisits((prev) =>
-      prev.map((v) => (v.id === id ? { ...v, status: status as SiteVisit["status"] } : v))
-    );
+    setVisits((prev) => prev.map((visit) => visit.id === id ? { ...visit, status: status as SiteVisit["status"] } : visit));
   }
 
   async function handleCreate(e: FormEvent<HTMLFormElement>) {
@@ -58,334 +41,118 @@ export default function SiteVisitsPage() {
     const fd = new FormData(e.currentTarget);
     const body = Object.fromEntries(fd.entries());
     try {
-      const v = await api.createSiteVisit(body as Record<string, unknown>);
-      setVisits((prev) => [v as SiteVisit, ...prev]);
-      const name =
-        leads.find((l) => String(l.id) === String(body.leadId))?.name ?? "Client";
+      const visit = await api.createSiteVisit(body as Record<string, unknown>);
+      setVisits((prev) => [visit as SiteVisit, ...prev]);
+      const name = leads.find((item) => String(item.id) === String(body.leadId))?.name ?? "Client";
       await notifySiteVisitReminder(name, String(body.address));
     } catch {
-      // silent
     } finally {
       setShowForm(false);
     }
   }
 
   function handleScopeSheetSaved(visitId: number, sheet: ScopeSheet) {
-    setVisits((prev) =>
-      prev.map((v) => (v.id === visitId ? { ...v, scopeSheet: sheet } : v))
-    );
+    setVisits((prev) => prev.map((visit) => visit.id === visitId ? { ...visit, scopeSheet: sheet } : visit));
   }
 
-  const visible =
-    filter === "all"
-      ? visits
-      : visits.filter(
-          (v) =>
-            v.status.toLowerCase().replace(" ", "-") === filter ||
-            v.status.toLowerCase() === filter
-        );
-
-  const filterCount = (f: string) =>
-    f === "all"
-      ? visits.length
-      : visits.filter((v) => v.status.toLowerCase() === f).length;
+  const visible = filter === "all" ? visits : visits.filter((visit) => visit.status.toLowerCase().replace(" ", "-") === filter || visit.status.toLowerCase() === filter);
+  const scheduled = visits.filter((visit) => visit.status === "Scheduled");
+  const completed = visits.filter((visit) => visit.status === "Completed");
+  const today = new Date().toISOString().slice(0, 10);
+  const todayVisits = scheduled.filter((visit) => visit.date?.slice(0, 10) === today);
 
   return (
-    <div className="p-4 sm:p-6 space-y-4 sm:space-y-5 max-w-[1400px] mx-auto">
-      {/* Page header */}
-      <div className="flex items-center justify-between gap-3">
-        <div className="min-w-0">
-          <h1 className="text-xl sm:text-2xl font-bold text-white">Site Visits</h1>
-          <p className="text-slate-500 text-xs sm:text-sm mt-0.5">
-            {visits.filter((v) => v.status === "Scheduled").length} scheduled
-          </p>
-        </div>
-        <button
-          onClick={() => setShowForm(true)}
-          className="shrink-0 flex items-center gap-2 bg-teal-600 hover:bg-teal-500 text-white text-sm font-semibold px-3 sm:px-4 py-2.5 rounded-lg transition shadow-lg shadow-teal-900/30"
-        >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={2.5}
-            className="w-4 h-4"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 4.5v15m7.5-7.5h-15"
-            />
-          </svg>
-          <span className="hidden sm:inline">Schedule Visit</span>
-          <span className="sm:hidden">Add</span>
-        </button>
-      </div>
+    <div className={pageWrap}>
+      <PageHeader
+        eyebrow="Site visit calendar"
+        title="Site Visits"
+        subtitle={`${scheduled.length} scheduled - ${todayVisits.length} today - ${completed.length} completed`}
+        action={<button onClick={() => setShowForm(true)} className={buttonPrimary}>+ Schedule Visit</button>}
+      />
 
-      {/* Status filter tabs */}
-      <div className="flex items-center gap-2 flex-wrap">
-        {FILTERS.map((f) => (
-          <button
-            key={f}
-            onClick={() => setFilter(f)}
-            className={`px-4 py-2 rounded-lg border text-sm font-medium capitalize transition ${
-              filter === f
-                ? FILTER_COLOR[f]
-                : "bg-slate-900 border-slate-800 text-slate-400 hover:text-white hover:bg-slate-800"
-            }`}
-          >
-            {f}
-            {filterCount(f) > 0 && (
-              <span className="ml-1.5 text-xs opacity-70">
-                ({filterCount(f)})
-              </span>
-            )}
-          </button>
-        ))}
-      </div>
+      <div className="grid grid-cols-1 gap-6 xl:grid-cols-[380px_1fr]">
+        <Section title="Weekly visit planner" subtitle="Calendar-first overview for managers.">
+          <div className="grid grid-cols-7 gap-2 p-4">
+            {Array.from({ length: 7 }).map((_, index) => {
+              const day = new Date();
+              day.setDate(day.getDate() + index);
+              const key = day.toISOString().slice(0, 10);
+              const count = scheduled.filter((visit) => visit.date?.slice(0, 10) === key).length;
+              return (
+                <div key={key} className={`rounded-2xl border p-3 text-center ${index === 0 ? "border-blue-600 bg-blue-50 dark:bg-blue-500/10" : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"}`}>
+                  <p className="text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">{day.toLocaleDateString("en-IN", { weekday: "short" })}</p>
+                  <p className="mt-1 text-lg font-bold text-slate-950 dark:text-white">{day.getDate()}</p>
+                  <p className="mt-1 text-xs font-semibold text-blue-600 dark:text-blue-400">{count} visit{count === 1 ? "" : "s"}</p>
+                </div>
+              );
+            })}
+          </div>
+        </Section>
 
-      {/* Visits table */}
-      <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-x-auto">
-        {loading ? (
-          <div className="p-5 space-y-3">
-            {Array.from({ length: 5 }).map((_, i) => (
-              <div
-                key={i}
-                className="h-14 bg-slate-800 rounded-lg animate-pulse"
-              />
+        <Section title="Daily visits" subtitle="One tap to start, complete, reschedule, or open scope sheet.">
+          <div className="flex gap-2 overflow-x-auto border-b border-slate-100 p-4 dark:border-slate-800">
+            {FILTERS.map((item) => (
+              <button key={item} onClick={() => setFilter(item)} className={`shrink-0 rounded-xl border px-4 py-2 text-sm font-semibold capitalize ${filter === item ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"}`}>
+                {item}
+              </button>
             ))}
           </div>
-        ) : visible.length === 0 ? (
-          <div className="p-14 text-center">
-            <p className="text-slate-600 text-sm">No site visits found</p>
-          </div>
-        ) : (
-          <table className="w-full min-w-[700px]">
-            <thead>
-              <tr className="border-b border-slate-800">
-                <th className="text-left text-xs font-semibold text-slate-500 px-5 py-3.5">
-                  Lead / Project
-                </th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5 hidden md:table-cell">
-                  Address
-                </th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5">
-                  Date
-                </th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5 hidden lg:table-cell">
-                  Assigned To
-                </th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5">
-                  Status
-                </th>
-                <th className="text-left text-xs font-semibold text-slate-500 px-4 py-3.5">
-                  Scope Sheet
-                </th>
-                <th className="text-right text-xs font-semibold text-slate-500 px-5 py-3.5">
-                  Actions
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800">
-              {visible.map((visit) => (
-                <tr
-                  key={visit.id}
-                  className="hover:bg-slate-800/40 transition-colors"
-                >
-                  <td className="px-5 py-3.5">
-                    <p className="font-semibold text-white text-sm">
-                      {leadName(visit.leadId)}
-                    </p>
-                    {visit.notes && (
-                      <p className="text-slate-500 text-xs mt-0.5 truncate max-w-[200px]">
-                        {visit.notes}
-                      </p>
-                    )}
-                  </td>
-                  <td className="px-4 py-3.5 hidden md:table-cell">
-                    <span className="text-slate-400 text-sm">
-                      {visit.address}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <span className="text-slate-400 text-sm">
-                      {shortDate(visit.date)}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5 hidden lg:table-cell">
-                    <span className="text-slate-500 text-sm">
-                      {visit.assignedTo}
-                    </span>
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <Badge value={visit.status} />
-                  </td>
-                  <td className="px-4 py-3.5">
-                    <button
-                      onClick={() => setScopeVisit(visit)}
-                      className={`flex items-center gap-1.5 text-xs font-semibold px-2.5 py-1.5 rounded-lg border transition ${
-                        visit.scopeSheet
-                          ? "bg-teal-500/15 text-teal-400 border-teal-500/30 hover:bg-teal-500/25"
-                          : "bg-slate-800 text-slate-400 border-slate-700 hover:text-white hover:bg-slate-700"
-                      }`}
-                    >
-                      {visit.scopeSheet ? (
+
+          {loading ? (
+            <div className="space-y-3 p-5">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-28" />)}</div>
+          ) : visible.length === 0 ? (
+            <EmptyState title="No site visits found" />
+          ) : (
+            <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2">
+              {visible.map((visit) => {
+                const client = lead(visit.leadId);
+                return (
+                  <article key={visit.id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-slate-950 dark:text-white">{client ? `${client.name} - ${client.project}` : `Lead #${visit.leadId}`}</p>
+                        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{shortDate(visit.date)} - {visit.assignedTo}</p>
+                      </div>
+                      <Badge value={visit.status} />
+                    </div>
+                    <div className="mt-4 rounded-2xl bg-slate-50 p-4 dark:bg-slate-900">
+                      <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Map Location</p>
+                      <p className="mt-1 text-sm font-medium text-slate-800 dark:text-slate-200">{visit.address}</p>
+                    </div>
+                    {visit.notes && <p className="mt-3 text-sm text-slate-500 dark:text-slate-400">{visit.notes}</p>}
+                    <div className="mt-5 flex flex-wrap gap-2">
+                      <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(visit.address)}`} target="_blank" rel="noreferrer" className={buttonSecondary}>Open Map</a>
+                      <button onClick={() => setScopeVisit(visit)} className={buttonSecondary}>{visit.scopeSheet ? "View Scope" : "Fill Scope"}</button>
+                      {visit.status === "Scheduled" && (
                         <>
-                          <svg
-                            viewBox="0 0 14 14"
-                            fill="none"
-                            className="w-3 h-3"
-                          >
-                            <path
-                              d="M2 7l3 3 7-7"
-                              stroke="currentColor"
-                              strokeWidth={1.5}
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                            />
-                          </svg>
-                          View / Edit
-                        </>
-                      ) : (
-                        <>
-                          <svg
-                            viewBox="0 0 14 14"
-                            fill="none"
-                            className="w-3 h-3"
-                          >
-                            <path
-                              d="M7 2v10M2 7h10"
-                              stroke="currentColor"
-                              strokeWidth={1.5}
-                              strokeLinecap="round"
-                            />
-                          </svg>
-                          Fill Sheet
+                          <button onClick={() => handleStatus(visit.id, "Completed")} className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">Start / Complete</button>
+                          <button onClick={() => handleStatus(visit.id, "Rescheduled")} className="rounded-xl bg-amber-500 px-4 py-2.5 text-sm font-semibold text-white hover:bg-amber-600">Reschedule</button>
                         </>
                       )}
-                    </button>
-                  </td>
-                  <td className="px-5 py-3.5 text-right">
-                    {visit.status === "Scheduled" && (
-                      <div className="flex items-center justify-end gap-2">
-                        <button
-                          onClick={() => handleStatus(visit.id, "Completed")}
-                          className="text-xs font-semibold text-emerald-400 border border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 px-3 py-1.5 rounded-lg transition"
-                        >
-                          Completed
-                        </button>
-                        <button
-                          onClick={() => handleStatus(visit.id, "Rescheduled")}
-                          className="text-xs font-semibold text-amber-400 border border-amber-500/30 bg-amber-500/10 hover:bg-amber-500/20 px-3 py-1.5 rounded-lg transition"
-                        >
-                          Reschedule
-                        </button>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        )}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )}
+        </Section>
       </div>
 
-      {/* Schedule Site Visit Modal */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <div
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
-            onClick={() => setShowForm(false)}
-          />
-          <div className="relative bg-slate-900 border border-slate-700 rounded-2xl w-full max-w-md shadow-2xl">
-            <div className="flex items-center justify-between px-6 py-4 border-b border-slate-800">
-              <h2 className="text-lg font-bold text-white">
-                Schedule Site Visit
-              </h2>
-              <button
-                onClick={() => setShowForm(false)}
-                className="text-slate-500 hover:text-white transition p-1 rounded-lg hover:bg-slate-800"
-              >
-                <svg
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth={2}
-                  className="w-5 h-5"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    d="M6 18L18 6M6 6l12 12"
-                  />
-                </svg>
-              </button>
+        <Modal title="Schedule Site Visit" onClose={() => setShowForm(false)}>
+          <form onSubmit={handleCreate} className="space-y-4">
+            <Field label="Lead *"><select name="leadId" required className={selectCls}><option value="">Select lead</option>{leads.filter((l) => !["Won", "Lost"].includes(l.stage)).map((l) => <option key={l.id} value={l.id}>{l.name} - {l.project}</option>)}</select></Field>
+            <Field label="Visit Date *"><input name="date" type="date" required className={inputCls} /></Field>
+            <Field label="Property Address *"><input name="address" required placeholder="Full address with pincode" className={inputCls} /></Field>
+            <Field label="Notes"><textarea name="notes" rows={3} placeholder="What to bring, scope, special instructions..." className={inputCls} /></Field>
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={() => setShowForm(false)} className={buttonSecondary}>Cancel</button>
+              <button type="submit" className={buttonPrimary}>Schedule Visit</button>
             </div>
-
-            <form onSubmit={handleCreate} className="px-6 py-5 space-y-4">
-              <div>
-                <label className={labelCls}>Lead *</label>
-                <select name="leadId" required className={selectCls}>
-                  <option value="">Select lead</option>
-                  {leads
-                    .filter((l) => !["Won", "Lost"].includes(l.stage))
-                    .map((l) => (
-                      <option key={l.id} value={l.id}>
-                        {l.name} — {l.project}
-                      </option>
-                    ))}
-                </select>
-              </div>
-              <div>
-                <label className={labelCls}>Visit Date *</label>
-                <input
-                  name="date"
-                  type="date"
-                  required
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className={labelCls}>Property Address *</label>
-                <input
-                  name="address"
-                  type="text"
-                  required
-                  placeholder="Full address with pincode"
-                  className={inputCls}
-                />
-              </div>
-              <div>
-                <label className={labelCls}>Notes</label>
-                <textarea
-                  name="notes"
-                  rows={3}
-                  placeholder="What to bring, scope, special instructions…"
-                  className={`${inputCls} resize-none`}
-                />
-              </div>
-
-              <div className="flex items-center gap-3 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowForm(false)}
-                  className="flex-1 bg-slate-800 hover:bg-slate-700 text-slate-300 font-semibold py-2.5 rounded-lg transition text-sm"
-                >
-                  Cancel
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 bg-teal-600 hover:bg-teal-500 text-white font-semibold py-2.5 rounded-lg transition text-sm shadow-lg shadow-teal-900/30"
-                >
-                  Schedule Visit
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
+          </form>
+        </Modal>
       )}
 
-      {/* Scope Sheet Modal */}
       {scopeVisit && (
         <ScopeSheetModal
           visit={scopeVisit}
@@ -396,6 +163,25 @@ export default function SiteVisitsPage() {
           }}
         />
       )}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label>{<span className={labelCls}>{label}</span>}{children}</label>;
+}
+
+function Modal({ title, children, onClose }: { title: string; children: React.ReactNode; onClose: () => void }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose} />
+      <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
+          <h2 className="text-lg font-bold text-slate-950 dark:text-white">{title}</h2>
+          <button onClick={onClose} className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">Close</button>
+        </div>
+        <div className="p-6">{children}</div>
+      </div>
     </div>
   );
 }

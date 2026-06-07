@@ -1,0 +1,323 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>JK Interiors Sales CRM - A to Z Project Report</title>
+  <style>
+    @page { size: A4; margin: 18mm 15mm; }
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      color: #172033;
+      line-height: 1.45;
+      font-size: 12px;
+      margin: 0;
+    }
+    h1, h2, h3 { color: #0f172a; margin: 0 0 8px; }
+    h1 { font-size: 28px; letter-spacing: .2px; }
+    h2 { font-size: 18px; border-bottom: 1px solid #d7dee8; padding-bottom: 5px; margin-top: 24px; }
+    h3 { font-size: 14px; margin-top: 14px; }
+    p { margin: 6px 0; }
+    ul, ol { margin: 6px 0 10px 20px; padding: 0; }
+    li { margin: 3px 0; }
+    table { border-collapse: collapse; width: 100%; margin: 8px 0 14px; page-break-inside: avoid; }
+    th, td { border: 1px solid #d7dee8; padding: 7px; vertical-align: top; }
+    th { background: #eef3f8; color: #0f172a; text-align: left; }
+    code, pre { font-family: Consolas, "Courier New", monospace; }
+    pre {
+      background: #f6f8fb;
+      border: 1px solid #d7dee8;
+      padding: 10px;
+      white-space: pre-wrap;
+      border-radius: 4px;
+    }
+    .cover {
+      background: #0f172a;
+      color: white;
+      padding: 38px 34px;
+      margin: -18mm -15mm 18px;
+    }
+    .cover h1 { color: white; font-size: 32px; margin-bottom: 12px; }
+    .cover p { color: #cbd5e1; font-size: 14px; }
+    .badge {
+      display: inline-block;
+      background: #0d9488;
+      color: white;
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-weight: bold;
+      font-size: 11px;
+      margin-bottom: 14px;
+    }
+    .note {
+      background: #f0fdfa;
+      border-left: 4px solid #0d9488;
+      padding: 9px 11px;
+      margin: 10px 0;
+    }
+    .warn {
+      background: #fff7ed;
+      border-left: 4px solid #f97316;
+      padding: 9px 11px;
+      margin: 10px 0;
+    }
+    .muted { color: #64748b; }
+    .page-break { page-break-before: always; }
+  </style>
+</head>
+<body>
+  <section class="cover">
+    <div class="badge">A to Z Project Report</div>
+    <h1>JK Interiors Sales CRM</h1>
+    <p>Complete project details for the sales CRM repository: frontend, backend, mobile wrapper, Google Sheet sync, website lead capture, workflows, APIs, data model, deployment, limitations, and roadmap.</p>
+    <p><strong>Repository:</strong> jk-crmfor sales</p>
+    <p><strong>Prepared from code inspection:</strong> README.md, PROJECT_OUTLINE.md, backend source, frontend source, Google Apps Script, Capacitor Android setup, and website form snippet.</p>
+  </section>
+
+  <h2>1. Executive Summary</h2>
+  <p>JK Interiors Sales CRM is a focused sales management system for an interiors business. Its main purpose is to capture enquiries, track leads through a sales pipeline, schedule follow-ups, manage site visits, record scope sheets, create quotations, and show management-level sales metrics.</p>
+  <p>The project is split into a Next.js frontend, an Express backend, a Capacitor Android mobile app wrapper, a Google Apps Script integration for Google Sheet leads, and a website enquiry form snippet for direct public lead capture.</p>
+  <div class="note"><strong>Core operating rule:</strong> no active lead should exist without a next follow-up date. This is the main CRM discipline the product is designed to enforce.</div>
+
+  <h2>2. Business Goal</h2>
+  <p>The CRM supports the sales side of an interiors company. The current version concentrates on pre-sales and sales conversion, not execution, installation, procurement, or vendor management.</p>
+  <p>The intended journey is:</p>
+  <pre>Lead Created
+-> Assigned to Sales
+-> First Contact
+-> Qualified
+-> Requirement Collected
+-> Site Visit
+-> Quotation
+-> Negotiation
+-> Booking Confirmed
+-> Won</pre>
+
+  <h2>3. Project Structure</h2>
+  <table>
+    <tr><th>Path</th><th>Purpose</th></tr>
+    <tr><td><code>backend/</code></td><td>Node.js Express REST API, JWT authentication, MongoDB connection, CRM controllers, route protection, public lead endpoints.</td></tr>
+    <tr><td><code>frontend/</code></td><td>Next.js CRM web app with dashboard, leads, pipeline, follow-ups, site visits, quotations, reports, login, mobile-friendly layout, and Capacitor Android project.</td></tr>
+    <tr><td><code>mobile/</code></td><td>Separate Vite/React Capacitor mobile package scaffold with iOS-oriented scripts and native dependency list.</td></tr>
+    <tr><td><code>google-sheet-sync.gs</code></td><td>Google Apps Script to sync leads from a Google Sheet into the backend public webhook.</td></tr>
+    <tr><td><code>website-form-snippet.html</code></td><td>Drop-in website enquiry form that posts leads to the public backend endpoint.</td></tr>
+    <tr><td><code>PROJECT_OUTLINE.md</code></td><td>Original project outline, feature scope, and roadmap.</td></tr>
+    <tr><td><code>the ultimate scope sheet.pdf</code></td><td>Existing scope-sheet PDF/reference document in the repo.</td></tr>
+  </table>
+
+  <h2>4. Technology Stack</h2>
+  <table>
+    <tr><th>Layer</th><th>Technology</th><th>Notes</th></tr>
+    <tr><td>Frontend</td><td>Next.js, React, TypeScript, Tailwind CSS</td><td>App Router project under <code>frontend/app</code>. Static export is configured for Capacitor.</td></tr>
+    <tr><td>Backend</td><td>Node.js, Express</td><td>REST API under <code>/api</code>.</td></tr>
+    <tr><td>Auth</td><td>JWT, bcryptjs</td><td>Seed admin user stored in MongoDB with hashed password.</td></tr>
+    <tr><td>Database</td><td>MongoDB, Mongoose</td><td>Leads, follow-ups, and users have Mongoose models. Site visits and quotations are currently runtime-store only.</td></tr>
+    <tr><td>Mobile</td><td>Capacitor 6, Android project</td><td>Uses Capacitor Preferences, Network, Push Notifications, Local Notifications, Status Bar, Splash Screen, Keyboard.</td></tr>
+    <tr><td>Integrations</td><td>Google Apps Script, website form</td><td>Google Sheet webhook and public website lead capture API.</td></tr>
+  </table>
+
+  <h2>5. Login and Authentication</h2>
+  <p>The CRM uses one seeded admin account by default:</p>
+  <pre>Email: admin@jkinteriors.com
+Password: Jk@12345</pre>
+  <p>Backend login is handled by <code>POST /api/auth/login</code>. The backend validates the user from MongoDB with bcrypt and returns a JWT token valid for 8 hours. The frontend stores the token using Capacitor Preferences on native Android and localStorage in a browser.</p>
+  <p>The frontend also includes an offline/demo fallback: if backend login fails but the seeded credentials are entered, it stores an <code>offline-mode</code> token and lets the UI open for review.</p>
+
+  <h2>6. Backend Architecture</h2>
+  <p>The backend entry point is <code>backend/src/server.js</code>. It creates the Express app, enables CORS, parses JSON, registers routes, connects to MongoDB, seeds the admin user, hydrates the in-memory store from Mongo, and starts the server.</p>
+  <h3>Backend Startup Flow</h3>
+  <ol>
+    <li>Load environment variables with dotenv.</li>
+    <li>Create Express server and apply CORS plus JSON parsing.</li>
+    <li>Register health, public, auth, leads, follow-ups, site-visits, quotations, dashboard, and reminders routes.</li>
+    <li>Connect to MongoDB using <code>MONGO_URI</code>.</li>
+    <li>Seed or repair the admin user.</li>
+    <li>Load persisted leads and follow-ups into the runtime store.</li>
+    <li>Listen on the configured port, default <code>5000</code>.</li>
+  </ol>
+
+  <h3>Environment Configuration</h3>
+  <table>
+    <tr><th>Variable</th><th>Default</th><th>Purpose</th></tr>
+    <tr><td><code>PORT</code></td><td><code>5000</code></td><td>Backend HTTP port.</td></tr>
+    <tr><td><code>MONGO_URI</code></td><td><code>mongodb://127.0.0.1:27017/jk-sales-crm</code></td><td>MongoDB connection string.</td></tr>
+    <tr><td><code>JWT_SECRET</code></td><td><code>dev-secret-change-in-production</code></td><td>JWT signing secret. Must be changed in production.</td></tr>
+    <tr><td><code>SEED_EMAIL</code></td><td><code>admin@jkinteriors.com</code></td><td>Seeded admin login email.</td></tr>
+    <tr><td><code>SEED_PASSWORD</code></td><td><code>Jk@12345</code></td><td>Seeded admin password.</td></tr>
+    <tr><td><code>PUBLIC_API_KEY</code></td><td><code>jk-public-2026</code></td><td>Protects website public lead submissions.</td></tr>
+    <tr><td><code>SHEET_WEBHOOK_SECRET</code></td><td><code>jk-sheet-sync-2026</code></td><td>Protects Google Sheet webhook submissions.</td></tr>
+  </table>
+
+  <h2>7. API Endpoints</h2>
+  <table>
+    <tr><th>Endpoint</th><th>Auth</th><th>Purpose</th></tr>
+    <tr><td><code>GET /api/health</code></td><td>No</td><td>Checks backend status.</td></tr>
+    <tr><td><code>POST /api/auth/login</code></td><td>No</td><td>Logs in admin and returns JWT plus user.</td></tr>
+    <tr><td><code>POST /api/public/lead</code></td><td>API key</td><td>Website enquiry form lead capture with rate limit.</td></tr>
+    <tr><td><code>POST /api/public/google-sheet</code></td><td>Sheet secret</td><td>Google Sheet row sync webhook.</td></tr>
+    <tr><td><code>GET /api/dashboard</code></td><td>JWT</td><td>Dashboard summary, stage/source breakdown, hot leads, upcoming follow-ups.</td></tr>
+    <tr><td><code>GET /api/dashboard/crm</code></td><td>JWT</td><td>Returns all runtime CRM data.</td></tr>
+    <tr><td><code>GET /api/leads</code></td><td>JWT</td><td>List leads. Supports stage, priority, and search query filters.</td></tr>
+    <tr><td><code>GET /api/leads/:id</code></td><td>JWT</td><td>Read one lead.</td></tr>
+    <tr><td><code>POST /api/leads</code></td><td>JWT</td><td>Create lead and auto-create first follow-up.</td></tr>
+    <tr><td><code>PATCH /api/leads/:id</code></td><td>JWT</td><td>Update lead fields.</td></tr>
+    <tr><td><code>PATCH /api/leads/:id/stage</code></td><td>JWT</td><td>Move lead stage and optionally store lost reason.</td></tr>
+    <tr><td><code>DELETE /api/leads/:id</code></td><td>JWT</td><td>Delete lead from runtime store and MongoDB.</td></tr>
+    <tr><td><code>GET /api/follow-ups</code></td><td>JWT</td><td>List follow-ups by status or lead.</td></tr>
+    <tr><td><code>POST /api/follow-ups</code></td><td>JWT</td><td>Create follow-up and update the lead's next follow-up.</td></tr>
+    <tr><td><code>PATCH /api/follow-ups/:id</code></td><td>JWT</td><td>Update follow-up fields.</td></tr>
+    <tr><td><code>PATCH /api/follow-ups/:id/complete</code></td><td>JWT</td><td>Mark follow-up completed and update lead activity.</td></tr>
+    <tr><td><code>GET /api/site-visits</code></td><td>JWT</td><td>List site visits by status, lead, or date.</td></tr>
+    <tr><td><code>POST /api/site-visits</code></td><td>JWT</td><td>Create site visit and move lead to Site Visit stage.</td></tr>
+    <tr><td><code>PATCH /api/site-visits/:id</code></td><td>JWT</td><td>Update visit details or status.</td></tr>
+    <tr><td><code>PUT /api/site-visits/:id/scope-sheet</code></td><td>JWT</td><td>Attach or update scope sheet data for a visit.</td></tr>
+    <tr><td><code>GET /api/quotations</code></td><td>JWT</td><td>List quotations by status or lead.</td></tr>
+    <tr><td><code>POST /api/quotations</code></td><td>JWT</td><td>Create quotation and move lead to Quotation stage.</td></tr>
+    <tr><td><code>PATCH /api/quotations/:id</code></td><td>JWT</td><td>Update quotation. Accepted quotations move lead to Won.</td></tr>
+    <tr><td><code>GET /api/reminders</code></td><td>JWT</td><td>Returns overdue, due-today, stale leads, and new website lead reminders.</td></tr>
+  </table>
+
+  <h2>8. Data Model</h2>
+  <h3>Lead</h3>
+  <p>Main sales entity. Fields include id, name, phone, email, location, source, project, budget, estimated budget from sheet, sheet date, DOB, quality fields, call notes, stage, priority, owner, next follow-up, last activity, notes, lost reason, created date, and updated date.</p>
+  <h3>Follow-up</h3>
+  <p>Task linked to a lead. Fields include id, leadId, type, due date, status, outcome, notes, createdAt, and completedAt.</p>
+  <h3>Site Visit</h3>
+  <p>Visit linked to a lead. Fields include id, leadId, date, address, status, notes, assignedTo, createdAt, and optional scopeSheet.</p>
+  <h3>Quotation</h3>
+  <p>Commercial quote linked to a lead. Fields include id, leadId, quotation number, amount, status, validTill, discount, tax, terms, and createdAt.</p>
+  <h3>Scope Sheet</h3>
+  <p>Structured site visit requirement document with project information, service requirements, deliverables, living room, dining, kitchen, bedroom, washroom, civil, carpentry, false ceiling, wall covering, flooring, hardware, electrical, and notes fields.</p>
+  <h3>User</h3>
+  <p>Admin user with email, passwordHash, name, role, active flag, createdAt, and updatedAt.</p>
+
+  <div class="warn"><strong>Persistence note:</strong> the current code persists users, leads, and follow-ups through MongoDB. Site visits, quotations, and scope sheets are currently stored in the runtime in-memory store, so they should be moved to MongoDB before production use.</div>
+
+  <h2>9. Frontend Architecture</h2>
+  <p>The frontend is a Next.js App Router project in <code>frontend/</code>. It uses TypeScript types in <code>frontend/lib/types.ts</code>, an async API client in <code>frontend/lib/api.ts</code>, and storage helpers in <code>frontend/lib/storage.ts</code>. CRM routes are grouped under <code>frontend/app/(crm)</code>.</p>
+  <h3>Navigation</h3>
+  <p>Main navigation includes Dashboard, Leads, Pipeline, Follow-ups, Site Visits, Quotations, and Reports. Desktop uses a left sidebar. Mobile uses a bottom navigation bar with More access.</p>
+  <h3>Authentication Hook</h3>
+  <p><code>useAuth</code> loads the token and user, redirects unauthenticated users to login, and clears storage on logout.</p>
+  <h3>Network and Notifications</h3>
+  <p>The app tracks online/offline state and shows an Offline badge. Notification helpers register push notifications and schedule local notifications on native devices.</p>
+
+  <h2>10. Frontend Screens</h2>
+  <table>
+    <tr><th>Screen</th><th>Purpose and Features</th></tr>
+    <tr><td>Login</td><td>Professional JK Interiors login screen, seeded credential defaults, show/hide password, backend login, offline demo fallback.</td></tr>
+    <tr><td>Dashboard</td><td>Total leads, pipeline value, won revenue, conversion rate, overdue follow-ups, site visits today, stage breakdown, hot leads, and upcoming actions.</td></tr>
+    <tr><td>Leads</td><td>Lead list, search, create lead, update stage, open lead details, log interaction by creating a follow-up.</td></tr>
+    <tr><td>Pipeline</td><td>Stage tabs/cards for New Lead, Contacted, Qualified, Site Visit, Quotation, Negotiation, Won, and Lost. Shows stage count and value.</td></tr>
+    <tr><td>Follow-ups</td><td>Follow-up queue with filters for all, overdue, pending, and completed. Create and complete follow-ups.</td></tr>
+    <tr><td>Site Visits</td><td>Scheduled/completed/rescheduled/cancelled visit management, create visits, update visit status, open and save scope sheet modal.</td></tr>
+    <tr><td>Quotations</td><td>Quotation list with filters for draft, sent, accepted, rejected, expired. Create quotes and update quote status.</td></tr>
+    <tr><td>Reports</td><td>KPI cards, stage count report, source report, and pipeline value by stage.</td></tr>
+    <tr><td>More</td><td>Mobile-friendly route for additional CRM navigation/actions.</td></tr>
+  </table>
+
+  <h2>11. Sales Workflow Details</h2>
+  <ol>
+    <li><strong>Lead Capture:</strong> Leads can come from manual entry, website form, Google Sheet, Instagram, Facebook Ads, WhatsApp, phone call, walk-in, referral, marketplace, or other source.</li>
+    <li><strong>First Follow-up:</strong> Manual and public leads automatically create a first call follow-up. Google Sheet leads also create a first call follow-up due the next day.</li>
+    <li><strong>Qualification:</strong> Sales team reviews location, project type, budget, seriousness, timeline, and priority.</li>
+    <li><strong>Pipeline Progress:</strong> Lead moves through New Lead, Contacted, Qualified, Site Visit, Quotation, Negotiation, Won, or Lost.</li>
+    <li><strong>Site Visit:</strong> A scheduled visit moves the lead to Site Visit. Completing a visit updates the lead activity.</li>
+    <li><strong>Scope Sheet:</strong> During or after site visit, detailed measurements, services, materials, and room-wise details are captured.</li>
+    <li><strong>Quotation:</strong> Creating a quotation moves the lead to Quotation. Accepting quotation moves the lead to Won.</li>
+    <li><strong>Lost Lead:</strong> Moving to Lost can store a lost reason for reporting and future analysis.</li>
+  </ol>
+
+  <h2>12. Google Sheet Sync</h2>
+  <p><code>google-sheet-sync.gs</code> is a Google Apps Script intended to be pasted into Apps Script for the configured spreadsheet. It installs triggers for form submissions and sheet changes, scans unsynced rows, sends row data to the backend webhook, and marks rows as synced.</p>
+  <table>
+    <tr><th>Setting</th><th>Current Value</th></tr>
+    <tr><td>Spreadsheet ID</td><td><code>13wKh5QPhdqi8KlqyYabpTR_1JxdGTCZrTqYfLrE0dD8</code></td></tr>
+    <tr><td>Webhook URL</td><td><code>https://api.jktaskmangement.online/api/public/google-sheet</code></td></tr>
+    <tr><td>Target sheet</td><td><code>Meta Ads</code></td></tr>
+    <tr><td>Synced column</td><td><code>CRM Synced</code></td></tr>
+    <tr><td>Synced marker</td><td><code>YES</code></td></tr>
+  </table>
+  <p>The backend maps sheet columns such as Date, Email, Name, Phone Number, DOB, home type, estimated budget, location, quality, quality type, initial comments, and call notes into CRM lead fields.</p>
+
+  <h2>13. Website Lead Capture</h2>
+  <p><code>website-form-snippet.html</code> provides a direct enquiry form for any website. Required fields are name and phone. Optional fields include email, location, project type, approximate budget, and message.</p>
+  <p>The form posts to:</p>
+  <pre>POST {BACKEND_URL}/api/public/lead
+Header: x-api-key: {PUBLIC_API_KEY}</pre>
+  <p>The backend protects this endpoint with an API key and a simple in-memory IP rate limit of 10 submissions per hour.</p>
+
+  <h2>14. Android Mobile App</h2>
+  <p>The <code>frontend/</code> app is configured for Android through Capacitor with app id <code>com.jkinteriors.crm</code> and app name <code>JK Interiors CRM</code>. The web output directory is <code>out</code>.</p>
+  <p>Mobile-focused features include native storage through Capacitor Preferences, online/offline detection, push notification registration, local notifications, status bar styling, splash screen configuration, keyboard resizing, and Android build files under <code>frontend/android</code>.</p>
+  <h3>Android Development Commands</h3>
+  <pre>cd frontend
+npm install
+npm run cap:sync
+npx cap open android
+npx cap run android</pre>
+  <p>For an Android emulator, the API client uses <code>http://10.0.2.2:5000/api</code> to reach the host computer's backend. For real devices, update the API URL to the computer's LAN IP or deploy the backend and set <code>NEXT_PUBLIC_API_URL</code>.</p>
+
+  <h2>15. How to Run Locally</h2>
+  <h3>Backend</h3>
+  <pre>cd backend
+npm install
+npm run dev</pre>
+  <p>Backend URL: <code>http://localhost:5000</code></p>
+  <h3>Frontend</h3>
+  <pre>cd frontend
+npm install
+npm run dev</pre>
+  <p>Frontend URL: <code>http://localhost:3000</code></p>
+  <h3>Optional Frontend API URL</h3>
+  <pre>NEXT_PUBLIC_API_URL=http://localhost:5000/api</pre>
+
+  <h2>16. Deployment Plan</h2>
+  <table>
+    <tr><th>Component</th><th>Recommended Deployment</th></tr>
+    <tr><td>Frontend web</td><td>Vercel, Netlify, or static hosting if using exported build.</td></tr>
+    <tr><td>Backend API</td><td>Render, Railway, AWS, DigitalOcean, VPS, or any Node hosting platform.</td></tr>
+    <tr><td>Database</td><td>MongoDB Atlas for managed production database.</td></tr>
+    <tr><td>Android</td><td>Build APK/AAB from Android Studio or Gradle after <code>npm run cap:sync</code>.</td></tr>
+    <tr><td>Google Sheet</td><td>Apps Script triggers installed inside the target Google Sheet.</td></tr>
+  </table>
+
+  <h2>17. Security Review</h2>
+  <ul>
+    <li>JWT authentication protects internal CRM routes.</li>
+    <li>Password is hashed with bcrypt in MongoDB.</li>
+    <li>Website form uses <code>x-api-key</code> plus rate limiting.</li>
+    <li>Google Sheet sync uses <code>x-sheet-secret</code>.</li>
+    <li>Default secrets are present in code as development fallbacks and must be changed before production.</li>
+    <li>CORS currently allows all origins. For production, restrict this to trusted frontend and Capacitor origins.</li>
+    <li>The frontend demo/offline login path is useful for UI review but should be reviewed before strict production release.</li>
+  </ul>
+
+  <h2>18. Current Limitations</h2>
+  <ul>
+    <li>Site visits, quotations, and scope sheets are not yet persisted to MongoDB in the current backend code.</li>
+    <li>Only a single seeded admin user is supported by default.</li>
+    <li>No role-based permission matrix is implemented yet.</li>
+    <li>Validation is basic and should be strengthened for production.</li>
+    <li>No automated test suite is visible in the inspected repo.</li>
+    <li>No production logging, audit trail, or rate limiting exists for authenticated routes yet.</li>
+    <li>Google Sheet duplicate detection uses phone number only.</li>
+    <li>Quotation creation tracks summary fields, not full room-wise quote items yet.</li>
+  </ul>
+
+  <h2>19. Recommended Next Development Phases</h2>
+  <ol>
+    <li><strong>Persistence completion:</strong> add Mongo models and persistence for site visits, quotations, and scope sheets.</li>
+    <li><strong>Lead detail page:</strong> show timeline, follow-ups, visits, scope sheet, quotations, notes, and activity in one place.</li>
+    <li><strong>Requirement workflow:</strong> convert the scope sheet into a complete sales requirement collection flow.</li>
+    <li><strong>Quotation module:</strong> add room-wise items, materials, quantity, GST, discount approval, PDF download, and versioning.</li>
+    <li><strong>Reporting:</strong> add source conversion, stage conversion, monthly bookings, quote conversion, lost reason, and salesperson performance.</li>
+    <li><strong>Team features:</strong> add multiple users, roles, lead assignment, reassignment, and manager views.</li>
+    <li><strong>Automation:</strong> follow-up reminders, quotation expiry alerts, stale lead alerts, and automatic next-action creation.</li>
+    <li><strong>Production hardening:</strong> strict CORS, secure secrets, request validation, error logging, backups, and tests.</li>
+  </ol>
+
+  <h2>20. Final Product Vision</h2>
+  <p>The final CRM should become the central sales cockpit for JK Interiors. Sales executives should know exactly whom to call today, managers should see the pipeline clearly, quotations should be traceable, and every won deal should be ready for handover into a future project execution module.</p>
+  <p>Once the sales CRM is stable, the natural next modules are project handover, designer assignment, production milestones, installation tracking, payment milestones, and client portal access.</p>
+</body>
+</html>
