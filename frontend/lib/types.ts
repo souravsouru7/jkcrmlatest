@@ -12,6 +12,22 @@ export type Priority = "Hot" | "Warm" | "Cold";
 
 export type Lead = {
   id: number;
+  Date?: string;
+  Email?: string;
+  Name?: string;
+  "Phone Number"?: string;
+  DOB?: string;
+  "What type of home do you have?"?: string;
+  "What is your estimated interior budget?"?: string;
+  "Which location is your property in?"?: string;
+  Quality?: string;
+  "Quality Type"?: string;
+  "Initial Comments"?: string;
+  "Call 1"?: string;
+  "Call 2"?: string;
+  "Call 3"?: string;
+  "Call 4"?: string;
+  "Call 5"?: string;
   name: string;
   phone: string;
   email: string;
@@ -30,7 +46,6 @@ export type Lead = {
   call3?: string;
   call4?: string;
   call5?: string;
-  call6?: string;
   stage: Stage;
   priority: Priority;
   owner: string;

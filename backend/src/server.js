@@ -49,7 +49,7 @@ connectDB()
     await seedAdminUser();
     await hydrateStoreFromMongo();
     app.listen(config.port, () => {
-      console.log(`JK Sales CRM backend → http://localhost:${config.port}`);
+      console.log(`JK Sales CRM backend -> http://localhost:${config.port}`);
     });
   })
   .catch((err) => {

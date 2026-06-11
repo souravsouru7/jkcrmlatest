@@ -47,3 +47,32 @@ export const FOLLOW_UP_TYPES = [
   "Booking Call",
   "Other",
 ];
+
+export const QUALITY_VALUES = [
+  "Positive",
+  "Negative",
+  "Can't Say",
+  "Awaiting Update",
+  "#N/A",
+] as const;
+
+export const QUALITY_TYPE_VALUES = [
+  "Out of hyderabad",
+  "No answer on call/msg",
+  "No requirements",
+  "Vendor/Contractors",
+  "Handover more than 3 months",
+  "Invalid /Number not working",
+  "Requirements Gathered",
+  "Awaiting Update",
+  "Requirement Scheduled",
+  "Duplicate",
+  "Property Rennovation",
+  "Package Shared",
+  "Out Of Budget",
+  "Booked from Others",
+  "Not In Scope",
+  "Quote Shared- Lost",
+  "quote shared-Awaiting Update",
+  "Converted",
+] as const;

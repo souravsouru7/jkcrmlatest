@@ -2,9 +2,10 @@
 
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
-import { money, shortDate, STAGES } from "@/lib/utils";
+import { money, shortDate, STAGES, FOLLOW_UP_TYPES } from "@/lib/utils";
 import Badge from "@/components/Badge";
-import { EmptyState, PageHeader, Skeleton, buttonPrimary, pageWrap } from "@/components/CrmDesign";
+import { EmptyState, PageHeader, Skeleton, buttonGhost, buttonPrimary, buttonSecondary, inputCls, labelCls, pageWrap, selectCls } from "@/components/CrmDesign";
+import LeadDetailDrawer from "@/components/LeadDetailDrawer";
 import type { Lead, Stage } from "@/lib/types";
 
 const PIPELINE_STAGES: Stage[] = ["New Lead", "Contacted", "Qualified", "Site Visit", "Quotation", "Negotiation", "Won"];
@@ -23,6 +24,9 @@ export default function PipelinePage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [draggingId, setDraggingId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
+  const [activeLead, setActiveLead] = useState<Lead | null>(null);
+  const [loggingLead, setLoggingLead] = useState<Lead | null>(null);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     api.leads()
@@ -34,6 +38,37 @@ export default function PipelinePage() {
   async function moveLead(id: number, stage: Stage) {
     await api.updateStage(id, stage).catch(() => {});
     setLeads((prev) => prev.map((lead) => lead.id === id ? { ...lead, stage } : lead));
+  }
+
+  async function handleDelete(id: number) {
+    if (!window.confirm("Are you sure you want to delete this lead? This action cannot be undone.")) return;
+    try {
+      await api.deleteLead(id);
+      setLeads((prev) => prev.filter((lead) => lead.id !== id));
+      setActiveLead(null);
+    } catch (err: any) {
+      alert(err.message || "Failed to delete lead");
+    }
+  }
+
+  async function handleLogInteraction(e: React.FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!loggingLead) return;
+    setSaving(true);
+    const fd = new FormData(e.currentTarget);
+    const due = String(fd.get("due") || new Date().toISOString().slice(0, 10));
+    const type = String(fd.get("type") || "Call");
+    const outcome = String(fd.get("outcome") || "").trim();
+    const notes = String(fd.get("notes") || "").trim();
+    try {
+      await api.createFollowUp({ leadId: loggingLead.id, type, due, outcome, notes });
+      setLeads((prev) => prev.map((lead) => lead.id === loggingLead.id ? { ...lead, nextFollowUp: due, lastActivity: `${type} logged`, updatedAt: new Date().toISOString() } : lead));
+    } catch {
+      setLeads((prev) => prev.map((lead) => lead.id === loggingLead.id ? { ...lead, nextFollowUp: due } : lead));
+    } finally {
+      setSaving(false);
+      setLoggingLead(null);
+    }
   }
 
   const activeLeads = leads.filter((lead) => PIPELINE_STAGES.includes(lead.stage));
@@ -93,7 +128,8 @@ export default function PipelinePage() {
                           draggable
                           onDragStart={() => setDraggingId(lead.id)}
                           onDragEnd={() => setDraggingId(null)}
-                          className="cursor-grab rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:-translate-y-0.5 hover:shadow-md active:cursor-grabbing dark:border-slate-800 dark:bg-slate-950"
+                          onClick={() => setActiveLead(lead)}
+                          className="cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950"
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
@@ -107,7 +143,7 @@ export default function PipelinePage() {
                             <span className="truncate text-xs text-slate-500 dark:text-slate-400">{lead.location}</span>
                             <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">{shortDate(lead.nextFollowUp)}</span>
                           </div>
-                          <select value={lead.stage} onChange={(e) => moveLead(lead.id, e.target.value as Stage)} className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                          <select value={lead.stage} onClick={(e) => e.stopPropagation()} onChange={(e) => moveLead(lead.id, e.target.value as Stage)} className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
                             {STAGES.map((item) => <option key={item}>{item}</option>)}
                           </select>
                         </article>
@@ -122,6 +158,54 @@ export default function PipelinePage() {
       )}
 
       {!loading && activeLeads.length === 0 && <EmptyState title="No active pipeline" subtitle="Create leads or move existing leads into pipeline stages." />}
+
+      {activeLead && (
+        <LeadDetailDrawer
+          lead={activeLead}
+          onClose={() => setActiveLead(null)}
+          onLog={() => {
+            setLoggingLead(activeLead);
+            setActiveLead(null);
+          }}
+          onDelete={() => handleDelete(activeLead.id)}
+        />
+      )}
+
+      {loggingLead && (
+        <Modal title={`Log activity - ${loggingLead.name || "Lead"}`} onClose={() => setLoggingLead(null)}>
+          <form onSubmit={handleLogInteraction} className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Activity"><select name="type" defaultValue="Call" className={selectCls}>{FOLLOW_UP_TYPES.map((type) => <option key={type}>{type}</option>)}</select></Field>
+              <Field label="Next Follow-up"><input name="due" type="date" required defaultValue={new Date().toISOString().slice(0, 10)} className={inputCls} /></Field>
+            </div>
+            <Field label="Outcome"><input name="outcome" className={inputCls} placeholder="Connected, asked for quote, no answer..." /></Field>
+            <Field label="Notes"><textarea name="notes" rows={3} className={inputCls} placeholder="Conversation details and commitment..." /></Field>
+            <div className="flex justify-end gap-3 pt-2">
+              <button type="button" onClick={() => setLoggingLead(null)} className={buttonSecondary}>Cancel</button>
+              <button type="submit" disabled={saving} className={buttonPrimary}>{saving ? "Saving..." : "Save Log"}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: React.ReactNode }) {
+  return <label>{<span className={labelCls}>{label}</span>}{children}</label>;
+}
+
+function Modal({ title, children, onClose, max = "max-w-xl" }: { title: string; children: React.ReactNode; onClose: () => void; max?: string }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose} />
+      <div className={`relative max-h-[90vh] w-full ${max} overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900`}>
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4 dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="text-lg font-bold text-slate-950 dark:text-white">{title}</h2>
+          <button onClick={onClose} className={buttonGhost}>Close</button>
+        </div>
+        <div className="p-6">{children}</div>
+      </div>
     </div>
   );
 }

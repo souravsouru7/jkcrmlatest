@@ -4,6 +4,27 @@ import { config } from "../config/env.js";
 const STAGES = ["New Lead", "Contacted", "Qualified", "Site Visit", "Quotation", "Negotiation", "Won", "Lost"];
 const PRIORITIES = ["Hot", "Warm", "Cold"];
 const SOURCES = ["Website", "Instagram", "Facebook Ads", "WhatsApp", "Phone Call", "Walk-in", "Referral", "Marketplace", "Google Sheet", "Other"];
+const QUALITY_VALUES = ["Positive", "Negative", "Can't Say", "Awaiting Update", "#N/A"];
+const QUALITY_TYPE_VALUES = [
+  "Out of hyderabad",
+  "No answer on call/msg",
+  "No requirements",
+  "Vendor/Contractors",
+  "Handover more than 3 months",
+  "Invalid /Number not working",
+  "Requirements Gathered",
+  "Awaiting Update",
+  "Requirement Scheduled",
+  "Duplicate",
+  "Property Rennovation",
+  "Package Shared",
+  "Out Of Budget",
+  "Booked from Others",
+  "Not In Scope",
+  "Quote Shared- Lost",
+  "quote shared-Awaiting Update",
+  "Converted",
+];
 
 const SHEET_SECRET = config.sheetWebhookSecret;
 
@@ -35,7 +56,16 @@ export async function submitLead(req, res) {
     return res.status(429).json({ error: "Too many submissions. Please try again later." });
   }
 
-  const { name, phone, email, location, source, project, budget, message } = req.body;
+  const name = req.body.Name || req.body.name;
+  const phone = req.body["Phone Number"] || req.body.phone;
+  const email = req.body.Email || req.body.email || "";
+  const location = req.body["Which location is your property in?"] || req.body.location || "";
+  const project = req.body["What type of home do you have?"] || req.body.project || "";
+  const budget = req.body["What is your estimated interior budget?"] || req.body.budget || "";
+  const message = req.body["Initial Comments"] || req.body.message || "";
+  const quality = req.body.Quality || "Awaiting Update";
+  const qualityType = req.body["Quality Type"] || "Awaiting Update";
+  const source = req.body.source;
 
   if (!name || !phone) {
     return res.status(400).json({ error: "Name and phone are required" });
@@ -44,13 +74,40 @@ export async function submitLead(req, res) {
   const now = new Date().toISOString();
   const lead = {
     id: Date.now(),
+    Date: req.body.Date || "",
+    Email: String(email).trim(),
+    Name: String(name).trim(),
+    "Phone Number": String(phone).trim(),
+    DOB: req.body.DOB || "",
+    "What type of home do you have?": project ? String(project).trim() : "",
+    "What is your estimated interior budget?": budget ? String(budget).trim() : "",
+    "Which location is your property in?": location ? String(location).trim() : "",
+    Quality: QUALITY_VALUES.includes(quality) ? quality : String(quality).trim(),
+    "Quality Type": QUALITY_TYPE_VALUES.includes(qualityType) ? qualityType : String(qualityType).trim(),
+    "Initial Comments": message ? String(message).trim() : "",
+    "Call 1": req.body["Call 1"] || "",
+    "Call 2": req.body["Call 2"] || "",
+    "Call 3": req.body["Call 3"] || "",
+    "Call 4": req.body["Call 4"] || "",
+    "Call 5": req.body["Call 5"] || "",
     name: String(name).trim(),
     phone: String(phone).trim(),
     email: email ? String(email).trim() : "",
     location: location ? String(location).trim() : "",
     source: SOURCES.includes(source) ? source : "Website",
     project: project ? String(project).trim() : "",
-    budget: Number(budget) || 0,
+    budget: 0,
+    estimatedBudget: budget ? String(budget).trim() : "",
+    sheetDate: req.body.Date || "",
+    dob: req.body.DOB || "",
+    quality: QUALITY_VALUES.includes(quality) ? quality : String(quality).trim(),
+    qualityType: QUALITY_TYPE_VALUES.includes(qualityType) ? qualityType : String(qualityType).trim(),
+    initialComments: message ? String(message).trim() : "",
+    call1: req.body["Call 1"] || "",
+    call2: req.body["Call 2"] || "",
+    call3: req.body["Call 3"] || "",
+    call4: req.body["Call 4"] || "",
+    call5: req.body["Call 5"] || "",
     stage: "New Lead",
     priority: "Warm",
     owner: "Sales Admin",
@@ -98,6 +155,8 @@ const FIELD_MAP = {
   call1: ["call 1"],
   call2: ["call 2"],
   call3: ["call 3"],
+  call4: ["call 4"],
+  call5: ["call 5"],
 };
 
 function normalizeValue(value) {
@@ -190,7 +249,7 @@ export async function googleSheetWebhook(req, res) {
   if (f.quality) noteParts.push(`Quality: ${f.quality}`);
   if (f.qualityType) noteParts.push(`Quality Type: ${f.qualityType}`);
   if (f.comments) noteParts.push(`Initial Comments: ${f.comments}`);
-  ["call1", "call2", "call3"].forEach((key, index) => {
+  ["call1", "call2", "call3", "call4", "call5"].forEach((key, index) => {
     if (f[key]) noteParts.push(`Call ${index + 1}: ${f[key]}`);
   });
 
@@ -199,6 +258,22 @@ export async function googleSheetWebhook(req, res) {
 
   const lead = {
     id: Date.now(),
+    Date: f.date ? String(f.date).trim() : "",
+    Email: f.email ? String(f.email).trim() : "",
+    Name: String(f.name).trim(),
+    "Phone Number": phone,
+    DOB: f.dob ? String(f.dob).trim() : "",
+    "What type of home do you have?": f.project ? String(f.project).trim() : "",
+    "What is your estimated interior budget?": f.budget ? String(f.budget).trim() : "",
+    "Which location is your property in?": f.location ? String(f.location).trim() : "",
+    Quality: f.quality ? String(f.quality).trim() : "",
+    "Quality Type": f.qualityType ? String(f.qualityType).trim() : "",
+    "Initial Comments": f.comments ? String(f.comments).trim() : "",
+    "Call 1": f.call1 ? String(f.call1).trim() : "",
+    "Call 2": f.call2 ? String(f.call2).trim() : "",
+    "Call 3": f.call3 ? String(f.call3).trim() : "",
+    "Call 4": f.call4 ? String(f.call4).trim() : "",
+    "Call 5": f.call5 ? String(f.call5).trim() : "",
     name:     String(f.name).trim(),
     phone,
     email:    f.email    ? String(f.email).trim()    : "",
@@ -215,6 +290,8 @@ export async function googleSheetWebhook(req, res) {
     call1: f.call1 ? String(f.call1).trim() : "",
     call2: f.call2 ? String(f.call2).trim() : "",
     call3: f.call3 ? String(f.call3).trim() : "",
+    call4: f.call4 ? String(f.call4).trim() : "",
+    call5: f.call5 ? String(f.call5).trim() : "",
     stage: "New Lead",
     priority: mapPriority(f.quality),
     owner: "Sales Admin",

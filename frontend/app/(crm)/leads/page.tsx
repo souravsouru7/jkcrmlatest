@@ -1,22 +1,21 @@
 "use client";
 
-import { FormEvent, useEffect, useState } from "react";
+import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
-import { FOLLOW_UP_TYPES, shortDate, STAGES, SOURCES, money } from "@/lib/utils";
+import { FOLLOW_UP_TYPES, QUALITY_TYPE_VALUES, QUALITY_VALUES, shortDate } from "@/lib/utils";
 import Badge from "@/components/Badge";
 import { EmptyState, PageHeader, Section, Skeleton, buttonGhost, buttonPrimary, buttonSecondary, inputCls, labelCls, pageWrap, selectCls } from "@/components/CrmDesign";
-import type { Lead, Stage } from "@/lib/types";
-
-const PRIORITY_DOT: Record<string, string> = {
-  Hot: "bg-red-500",
-  Warm: "bg-amber-500",
-  Cold: "bg-slate-400",
-};
+import type { Lead } from "@/lib/types";
+import LeadDetailDrawer, { DETAIL_ORDER, SheetField, normalizePhone, sheetValue } from "@/components/LeadDetailDrawer";
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [query, setQuery] = useState("");
-  const [stageFilter, setStageFilter] = useState("All");
+  const [qualityFilter, setQualityFilter] = useState("All");
+  const [qualityTypeFilter, setQualityTypeFilter] = useState("All");
+  const [locationFilter, setLocationFilter] = useState("All");
+  const [dateFilter, setDateFilter] = useState("");
+  const [budgetFilter, setBudgetFilter] = useState("");
   const [showForm, setShowForm] = useState(false);
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
   const [loggingLead, setLoggingLead] = useState<Lead | null>(null);
@@ -36,18 +35,26 @@ export default function LeadsPage() {
     }
   }
 
-  const filtered = leads.filter((lead) => {
-    const matchesQuery = [lead.name, lead.phone, lead.email, lead.location, lead.source, lead.project, lead.stage, lead.priority]
-      .join(" ")
-      .toLowerCase()
-      .includes(query.toLowerCase());
-    return matchesQuery && (stageFilter === "All" || lead.stage === stageFilter);
-  });
+  const locations = useMemo(() => {
+    return Array.from(new Set(leads.map((lead) => sheetValue(lead, "Which location is your property in?")).filter(Boolean))).sort();
+  }, [leads]);
 
-  async function handleStage(id: number, stage: string) {
-    await api.updateStage(id, stage).catch(() => {});
-    setLeads((prev) => prev.map((lead) => lead.id === id ? { ...lead, stage: stage as Stage } : lead));
-  }
+  const filtered = leads.filter((lead) => {
+    const haystack = DETAIL_ORDER.map((field) => sheetValue(lead, field)).join(" ").toLowerCase();
+    const quality = sheetValue(lead, "Quality");
+    const qualityType = sheetValue(lead, "Quality Type");
+    const location = sheetValue(lead, "Which location is your property in?");
+    const date = sheetValue(lead, "Date");
+    const budget = sheetValue(lead, "What is your estimated interior budget?");
+    return (
+      haystack.includes(query.toLowerCase()) &&
+      (qualityFilter === "All" || quality === qualityFilter) &&
+      (qualityTypeFilter === "All" || qualityType === qualityTypeFilter) &&
+      (locationFilter === "All" || location === locationFilter) &&
+      (!dateFilter || date.includes(dateFilter)) &&
+      (!budgetFilter || budget.toLowerCase().includes(budgetFilter.toLowerCase()))
+    );
+  });
 
   async function handleCreate(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -58,25 +65,8 @@ export default function LeadsPage() {
       const lead = await api.createLead(body as Record<string, unknown>);
       setLeads((prev) => [lead as Lead, ...prev]);
     } catch {
-      const newLead: Lead = {
-        id: Date.now(),
-        name: String(body.name),
-        phone: String(body.phone),
-        email: String(body.email || ""),
-        location: String(body.location),
-        source: String(body.source),
-        project: String(body.project),
-        budget: Number(body.budget),
-        stage: (body.stage as Stage) || "New Lead",
-        priority: (body.priority as Lead["priority"]) || "Warm",
-        owner: "Sales Admin",
-        nextFollowUp: String(body.nextFollowUp || ""),
-        lastActivity: "Lead created",
-        notes: String(body.notes || ""),
-        lostReason: null,
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString(),
-      };
+      const now = new Date().toISOString();
+      const newLead = sheetPayloadToLead(body, now);
       setLeads((prev) => [newLead, ...prev]);
     } finally {
       setSaving(false);
@@ -104,93 +94,125 @@ export default function LeadsPage() {
     }
   }
 
-  const pipelineValue = filtered.reduce((sum, lead) => sum + (lead.budget || 0), 0);
-  const hotCount = leads.filter((lead) => lead.priority === "Hot").length;
+  async function handleDelete(id: number) {
+    if (!window.confirm("Are you sure you want to delete this lead? This action cannot be undone.")) return;
+    try {
+      await api.deleteLead(id);
+      setLeads((prev) => prev.filter((lead) => lead.id !== id));
+      setActiveLead(null);
+    } catch (err: any) {
+      alert(err.message || "Failed to delete lead");
+    }
+  }
 
   return (
     <div className={pageWrap}>
       <PageHeader
-        eyebrow="Lead management"
+        eyebrow="Google Sheet mirror"
         title="Leads"
-        subtitle={`${leads.length} total leads - ${hotCount} hot - ${money(pipelineValue)} visible pipeline`}
+        subtitle={`${leads.length} total leads. Lead records preserve the exact Google Sheet fields and dropdown values.`}
         action={<button onClick={() => setShowForm(true)} className={buttonPrimary}>+ Add Lead</button>}
       />
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[1fr_auto]">
-        <div className="rounded-2xl border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-900">
-          <input className={inputCls} placeholder="Search client, city, source, phone, stage..." value={query} onChange={(e) => setQuery(e.target.value)} />
+      <Section title="Search and filters" subtitle="Filter by Quality, Quality Type, Location, Date, and Budget.">
+        <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-6">
+          <div className="lg:col-span-2">
+            <label className={labelCls}>Search</label>
+            <input className={inputCls} placeholder="Search exact sheet fields..." value={query} onChange={(e) => setQuery(e.target.value)} />
+          </div>
+          <FilterSelect label="Quality" value={qualityFilter} onChange={setQualityFilter} options={["All", ...QUALITY_VALUES]} />
+          <FilterSelect label="Quality Type" value={qualityTypeFilter} onChange={setQualityTypeFilter} options={["All", ...QUALITY_TYPE_VALUES]} />
+          <FilterSelect label="Location" value={locationFilter} onChange={setLocationFilter} options={["All", ...locations]} />
+          <div>
+            <label className={labelCls}>Date</label>
+            <input className={inputCls} value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} placeholder="Date" />
+          </div>
+          <div className="lg:col-span-2">
+            <label className={labelCls}>Budget</label>
+            <input className={inputCls} value={budgetFilter} onChange={(e) => setBudgetFilter(e.target.value)} placeholder="Budget text" />
+          </div>
         </div>
-        <div className="flex gap-2 overflow-x-auto">
-          {["All", ...STAGES].map((stage) => (
-            <button key={stage} onClick={() => setStageFilter(stage)} className={`shrink-0 rounded-xl border px-4 py-2.5 text-sm font-semibold ${stageFilter === stage ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"}`}>
-              {stage}
-            </button>
-          ))}
-        </div>
-      </div>
+      </Section>
 
-      <Section title="Lead workspace" subtitle="Open a client for one-screen history, communication, quotation, and notes.">
+      <Section title="Lead workspace" subtitle="Each card displays only Google Sheet lead fields, with quick communication actions.">
         {loading ? (
           <div className="space-y-3 p-5">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-20" />)}</div>
         ) : filtered.length === 0 ? (
-          <EmptyState title="No leads found" subtitle="Try another filter or add your first lead." />
+          <EmptyState title="No leads found" subtitle="Try another exact sheet filter value." />
         ) : (
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {filtered.map((lead) => (
-              <div key={lead.id} onClick={() => setActiveLead(lead)} className="grid cursor-pointer gap-4 px-5 py-4 hover:bg-slate-50 lg:grid-cols-[minmax(260px,1.4fr)_1fr_220px_220px] lg:items-center dark:hover:bg-slate-800/60">
-                <div className="flex min-w-0 items-center gap-3">
-                  <div className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-sm font-bold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
-                    {lead.name.slice(0, 2).toUpperCase()}
-                    <span className={`absolute -right-0.5 -top-0.5 h-3 w-3 rounded-full ring-2 ring-white dark:ring-slate-900 ${PRIORITY_DOT[lead.priority] ?? "bg-slate-400"}`} />
+            {filtered.map((lead) => {
+              const name = sheetValue(lead, "Name");
+              const phone = sheetValue(lead, "Phone Number");
+              const email = sheetValue(lead, "Email");
+              const location = sheetValue(lead, "Which location is your property in?");
+              const budget = sheetValue(lead, "What is your estimated interior budget?");
+              const quality = sheetValue(lead, "Quality") || "#N/A";
+              return (
+                <div key={lead.id} onClick={() => setActiveLead(lead)} className="grid cursor-pointer gap-4 px-5 py-4 hover:bg-slate-50 lg:grid-cols-[minmax(260px,1.2fr)_1fr_220px_240px] lg:items-center dark:hover:bg-slate-800/60">
+                  <div className="flex min-w-0 items-center gap-3">
+                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-sm font-bold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
+                      {(name || "NA").slice(0, 2).toUpperCase()}
+                    </div>
+                    <div className="min-w-0">
+                      <p className="truncate text-sm font-bold text-slate-950 dark:text-white">{name || "No Name"}</p>
+                      <p className="truncate text-xs text-slate-500 dark:text-slate-400">{phone || "No Phone Number"} - {location || "No Location"}</p>
+                    </div>
                   </div>
                   <div className="min-w-0">
-                    <p className="truncate text-sm font-bold text-slate-950 dark:text-white">{lead.name}</p>
-                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">{lead.phone} - {lead.location}</p>
+                    <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{sheetValue(lead, "What type of home do you have?") || "No home type"}</p>
+                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">{budget || "No budget"} - {shortDate(sheetValue(lead, "Date"))}</p>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Badge value={quality} />
+                    {sheetValue(lead, "Quality Type") && <Badge value={sheetValue(lead, "Quality Type")} />}
+                  </div>
+                  <div className="flex items-center justify-start gap-2 lg:justify-end" onClick={(e) => e.stopPropagation()}>
+                    {phone && <a href={`tel:${phone}`} className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Call</a>}
+                    {phone && <a href={`https://wa.me/${normalizePhone(phone)}`} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">WhatsApp</a>}
+                    {email && <a href={`mailto:${email}`} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Email</a>}
+                    <button onClick={() => setLoggingLead(lead)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Log</button>
+                    <button onClick={() => handleDelete(lead.id)} className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">Delete</button>
                   </div>
                 </div>
-
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{lead.project}</p>
-                  <p className="truncate text-xs text-slate-500 dark:text-slate-400">{lead.source} - {lead.owner}</p>
-                </div>
-
-                <div className="flex items-center gap-2">
-                  <select value={lead.stage} onClick={(e) => e.stopPropagation()} onChange={(e) => handleStage(lead.id, e.target.value)} className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 outline-none focus:border-blue-600 dark:border-slate-700 dark:bg-slate-950 dark:text-slate-200">
-                    {STAGES.map((stage) => <option key={stage} value={stage}>{stage}</option>)}
-                  </select>
-                  <Badge value={lead.priority} />
-                </div>
-
-                <div className="flex items-center justify-start gap-2 lg:justify-end" onClick={(e) => e.stopPropagation()}>
-                  <a href={`tel:${lead.phone}`} className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Call</a>
-                  <a href={`https://wa.me/${lead.phone.replace(/\D/g, "")}`} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">WhatsApp</a>
-                  <button onClick={() => setLoggingLead(lead)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Log</button>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </Section>
 
       {activeLead && (
-        <LeadDetailDrawer lead={activeLead} onClose={() => setActiveLead(null)} onLog={() => { setLoggingLead(activeLead); setActiveLead(null); }} />
+        <LeadDetailDrawer
+          lead={activeLead}
+          onClose={() => setActiveLead(null)}
+          onLog={() => {
+            setLoggingLead(activeLead);
+            setActiveLead(null);
+          }}
+          onDelete={() => handleDelete(activeLead.id)}
+        />
       )}
 
       {showForm && (
-        <Modal title="Add Sales Lead" onClose={() => setShowForm(false)} max="max-w-2xl">
+        <Modal title="Add Lead" onClose={() => setShowForm(false)} max="max-w-3xl">
           <form onSubmit={handleCreate} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Client Name *"><input name="name" required className={inputCls} placeholder="Full name" /></Field>
-              <Field label="Phone *"><input name="phone" required className={inputCls} placeholder="+91 98765 43210" /></Field>
-              <Field label="Email"><input name="email" type="email" className={inputCls} placeholder="client@example.com" /></Field>
-              <Field label="Location / City *"><input name="location" required className={inputCls} placeholder="Mumbai, Delhi..." /></Field>
-              <Field label="Project Type *"><input name="project" required className={inputCls} placeholder="Residential, commercial..." /></Field>
-              <Field label="Expected Budget *"><input name="budget" type="number" min="0" required className={inputCls} placeholder="500000" /></Field>
-              <Field label="Next Follow-up *"><input name="nextFollowUp" type="date" required className={inputCls} /></Field>
-              <Field label="Source *"><select name="source" required className={selectCls}>{SOURCES.map((source) => <option key={source}>{source}</option>)}</select></Field>
-              <Field label="Stage"><select name="stage" className={selectCls}>{STAGES.map((stage) => <option key={stage}>{stage}</option>)}</select></Field>
-              <Field label="Priority"><select name="priority" className={selectCls}>{["Hot", "Warm", "Cold"].map((priority) => <option key={priority}>{priority}</option>)}</select></Field>
-              <div className="sm:col-span-2"><Field label="Notes"><textarea name="notes" rows={3} className={inputCls} placeholder="Requirements, timeline, decision maker..." /></Field></div>
+              <Field label="Date"><input name="Date" type="date" className={inputCls} /></Field>
+              <Field label="Email"><input name="Email" type="email" className={inputCls} /></Field>
+              <Field label="Name"><input name="Name" required className={inputCls} /></Field>
+              <Field label="Phone Number"><input name="Phone Number" required className={inputCls} /></Field>
+              <Field label="DOB"><input name="DOB" type="date" className={inputCls} /></Field>
+              <Field label="What type of home do you have?"><input name="What type of home do you have?" className={inputCls} /></Field>
+              <Field label="What is your estimated interior budget?"><input name="What is your estimated interior budget?" className={inputCls} /></Field>
+              <Field label="Which location is your property in?"><input name="Which location is your property in?" className={inputCls} /></Field>
+              <Field label="Quality"><select name="Quality" className={selectCls}>{QUALITY_VALUES.map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
+              <Field label="Quality Type"><select name="Quality Type" className={selectCls}>{QUALITY_TYPE_VALUES.map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
+              <div className="sm:col-span-2"><Field label="Initial Comments"><textarea name="Initial Comments" rows={3} className={inputCls} /></Field></div>
+              <Field label="Call 1"><input name="Call 1" className={inputCls} /></Field>
+              <Field label="Call 2"><input name="Call 2" className={inputCls} /></Field>
+              <Field label="Call 3"><input name="Call 3" className={inputCls} /></Field>
+              <Field label="Call 4"><input name="Call 4" className={inputCls} /></Field>
+              <Field label="Call 5"><input name="Call 5" className={inputCls} /></Field>
             </div>
             <div className="flex justify-end gap-3 pt-2">
               <button type="button" onClick={() => setShowForm(false)} className={buttonSecondary}>Cancel</button>
@@ -201,7 +223,7 @@ export default function LeadsPage() {
       )}
 
       {loggingLead && (
-        <Modal title={`Log activity - ${loggingLead.name}`} onClose={() => setLoggingLead(null)}>
+        <Modal title={`Log activity - ${sheetValue(loggingLead, "Name") || "Lead"}`} onClose={() => setLoggingLead(null)}>
           <form onSubmit={handleLogInteraction} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field label="Activity"><select name="type" defaultValue="Call" className={selectCls}>{FOLLOW_UP_TYPES.map((type) => <option key={type}>{type}</option>)}</select></Field>
@@ -216,6 +238,67 @@ export default function LeadsPage() {
           </form>
         </Modal>
       )}
+    </div>
+  );
+}
+
+function sheetPayloadToLead(body: Record<string, FormDataEntryValue>, now: string): Lead {
+  const value = (field: SheetField) => String(body[field] || "").trim();
+  return {
+    id: Date.now(),
+    Date: value("Date"),
+    Email: value("Email"),
+    Name: value("Name"),
+    "Phone Number": value("Phone Number"),
+    DOB: value("DOB"),
+    "What type of home do you have?": value("What type of home do you have?"),
+    "What is your estimated interior budget?": value("What is your estimated interior budget?"),
+    "Which location is your property in?": value("Which location is your property in?"),
+    Quality: value("Quality"),
+    "Quality Type": value("Quality Type"),
+    "Initial Comments": value("Initial Comments"),
+    "Call 1": value("Call 1"),
+    "Call 2": value("Call 2"),
+    "Call 3": value("Call 3"),
+    "Call 4": value("Call 4"),
+    "Call 5": value("Call 5"),
+    name: value("Name"),
+    phone: value("Phone Number"),
+    email: value("Email"),
+    location: value("Which location is your property in?"),
+    source: "Manual Entry",
+    project: value("What type of home do you have?"),
+    budget: 0,
+    estimatedBudget: value("What is your estimated interior budget?"),
+    sheetDate: value("Date"),
+    dob: value("DOB"),
+    quality: value("Quality"),
+    qualityType: value("Quality Type"),
+    initialComments: value("Initial Comments"),
+    call1: value("Call 1"),
+    call2: value("Call 2"),
+    call3: value("Call 3"),
+    call4: value("Call 4"),
+    call5: value("Call 5"),
+    stage: "New Lead",
+    priority: "Warm",
+    owner: "Sales Admin",
+    nextFollowUp: null,
+    lastActivity: "Lead created",
+    notes: "",
+    lostReason: null,
+    createdAt: now,
+    updatedAt: now,
+  };
+}
+
+function FilterSelect({ label, value, options, onChange }: { label: string; value: string; options: readonly string[]; onChange: (value: string) => void }) {
+  return (
+    <div>
+      <label className={labelCls}>{label}</label>
+      <select className={selectCls} value={value} onChange={(e) => onChange(e.target.value)}>
+        {options.map((option) => <option key={option} value={option}>{option}</option>)}
+      </select>
     </div>
   );
 }
@@ -239,83 +322,4 @@ function Modal({ title, children, onClose, max = "max-w-xl" }: { title: string; 
   );
 }
 
-function LeadDetailDrawer({ lead, onClose, onLog }: { lead: Lead; onClose: () => void; onLog: () => void }) {
-  const updates = [lead.initialComments, lead.call1, lead.call2, lead.call3, lead.call4, lead.call5, lead.call6, lead.notes].filter(Boolean);
-  return (
-    <div className="fixed inset-0 z-50">
-      <div className="absolute inset-0 bg-slate-950/40 backdrop-blur-sm" onClick={onClose} />
-      <aside className="absolute right-0 top-0 h-full w-full max-w-2xl overflow-y-auto border-l border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950">
-        <div className="sticky top-0 z-10 border-b border-slate-100 bg-white/95 p-6 backdrop-blur dark:border-slate-800 dark:bg-slate-950/95">
-          <div className="flex items-start justify-between gap-4">
-            <div className="min-w-0">
-              <p className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">Customer profile</p>
-              <h2 className="mt-1 truncate text-2xl font-bold text-slate-950 dark:text-white">{lead.name}</h2>
-              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{lead.project} - {lead.location}</p>
-            </div>
-            <button onClick={onClose} className={buttonGhost}>Close</button>
-          </div>
-          <div className="mt-5 flex flex-wrap gap-2">
-            <a href={`tel:${lead.phone}`} className={buttonPrimary}>Call</a>
-            <a href={`https://wa.me/${lead.phone.replace(/\D/g, "")}`} className="inline-flex items-center rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700">WhatsApp</a>
-            {lead.email && <a href={`mailto:${lead.email}`} className={buttonSecondary}>Email</a>}
-            <button onClick={onLog} className={buttonSecondary}>Log Follow-up</button>
-          </div>
-        </div>
 
-        <div className="space-y-5 p-6">
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Mini label="Stage" value={<Badge value={lead.stage} />} />
-            <Mini label="Priority" value={<Badge value={lead.priority} />} />
-            <Mini label="Budget" value={lead.estimatedBudget || money(lead.budget || 0)} />
-            <Mini label="Next Follow-up" value={shortDate(lead.nextFollowUp)} />
-          </div>
-
-          <Section title="Timeline activity feed" subtitle="Calls, notes, scope updates, quote events, and follow-up history.">
-            {updates.length ? (
-              <div className="divide-y divide-slate-100 dark:divide-slate-800">
-                {updates.map((item, index) => (
-                  <div key={index} className="flex gap-3 px-5 py-4">
-                    <div className="mt-1 h-2.5 w-2.5 rounded-full bg-blue-600" />
-                    <div>
-                      <p className="text-sm font-semibold text-slate-950 dark:text-white">{index === 0 ? "Initial requirement" : `Activity ${index}`}</p>
-                      <p className="mt-1 text-sm leading-6 text-slate-600 dark:text-slate-300">{item}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <EmptyState title="No activity yet" subtitle="Log a call or follow-up to build the timeline." />
-            )}
-          </Section>
-
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Info title="Follow-up History" lines={[lead.lastActivity || "No recent activity", `Next: ${shortDate(lead.nextFollowUp)}`]} />
-            <Info title="Site Visit History" lines={[lead.stage === "Site Visit" ? "Site visit stage active" : "No visit linked on this screen", "Schedule from Site Visits"]} />
-            <Info title="Scope Sheet" lines={[lead.sheetDate ? `Sheet date: ${lead.sheetDate}` : "Scope sheet available after site visit", lead.quality || "Requirements not scored"]} />
-            <Info title="Quotations" lines={[lead.stage === "Quotation" ? "Quotation in progress" : "No quote linked on this screen", "Create quote from Quotations"]} />
-          </div>
-        </div>
-      </aside>
-    </div>
-  );
-}
-
-function Mini({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-900">
-      <p className="text-xs font-semibold text-slate-500 dark:text-slate-400">{label}</p>
-      <div className="mt-2 text-sm font-bold text-slate-950 dark:text-white">{value}</div>
-    </div>
-  );
-}
-
-function Info({ title, lines }: { title: string; lines: string[] }) {
-  return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-800 dark:bg-slate-900">
-      <p className="text-sm font-bold text-slate-950 dark:text-white">{title}</p>
-      <div className="mt-3 space-y-2">
-        {lines.map((line) => <p key={line} className="text-sm text-slate-500 dark:text-slate-400">{line}</p>)}
-      </div>
-    </div>
-  );
-}

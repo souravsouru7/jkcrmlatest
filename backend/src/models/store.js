@@ -39,7 +39,10 @@ export async function persistFollowUp(followUp) {
 }
 
 export async function deletePersistedLead(id) {
-  await LeadModel.deleteOne({ id: Number(id) });
+  await Promise.all([
+    LeadModel.deleteOne({ id: Number(id) }),
+    FollowUpModel.deleteMany({ leadId: Number(id) }),
+  ]);
 }
 
 export default store;

@@ -35,6 +35,8 @@ function getCrmSheetSyncConfig() {
       "Call 1",
       "Call 2",
       "Call 3",
+      "Call 4",
+      "Call 5",
     ],
   };
 }
