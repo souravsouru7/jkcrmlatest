@@ -8,6 +8,7 @@ export const config = {
   jwtExpiry: "8h",
   seedEmail: (process.env.SEED_EMAIL || "admin@jkinteriors.com").toLowerCase().trim(),
   seedPassword: process.env.SEED_PASSWORD || "Jk@12345",
+  resetDemoData: String(process.env.RESET_DEMO_DATA || "").toLowerCase() === "true",
   nodeEnv: process.env.NODE_ENV || "development",
   publicApiKey: process.env.PUBLIC_API_KEY || "jk-public-2026",
   sheetWebhookSecret: process.env.SHEET_WEBHOOK_SECRET || "jk-sheet-sync-2026",

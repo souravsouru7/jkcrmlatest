@@ -108,7 +108,7 @@ export default function FollowUpsPage() {
             <Field label="Type"><select name="type" className={selectCls}>{FOLLOW_UP_TYPES.map((type) => <option key={type}>{type}</option>)}</select></Field>
             <Field label="Due Date *"><input name="due" type="date" required className={inputCls} /></Field>
             <Field label="Goal / Outcome"><input name="outcome" className={inputCls} placeholder="What should happen?" /></Field>
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
               <button type="button" onClick={() => setShowForm(false)} className={buttonSecondary}>Cancel</button>
               <button type="submit" className={buttonPrimary}>Save Follow-up</button>
             </div>
@@ -121,7 +121,7 @@ export default function FollowUpsPage() {
           <form onSubmit={handleReschedule} className="space-y-4">
             <p className="text-sm text-slate-600 dark:text-slate-300">Move {lead(reschedule.leadId)?.name || `Lead #${reschedule.leadId}`} to a new due date.</p>
             <Field label="New due date"><input name="due" type="date" required defaultValue={reschedule.due.slice(0, 10)} className={inputCls} /></Field>
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
               <button type="button" onClick={() => setReschedule(null)} className={buttonSecondary}>Cancel</button>
               <button type="submit" className={buttonPrimary}>Reschedule</button>
             </div>
@@ -170,10 +170,10 @@ function FollowSection({ title, tone, items, loading, lead, onComplete, onResche
                 {f.notes && <p className="mt-3 rounded-xl bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">{f.notes}</p>}
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                   <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Due {shortDate(f.due)}</span>
-                  <div className="flex gap-2">
-                    {client && <a href={`tel:${client.phone}`} className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Call</a>}
-                    <button onClick={() => onComplete(f.id)} className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">Complete</button>
-                    <button onClick={() => onReschedule(f)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Reschedule</button>
+                  <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+                    {client && <a href={`tel:${client.phone}`} className="shrink-0 rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Call</a>}
+                    <button onClick={() => onComplete(f.id)} className="shrink-0 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">Complete</button>
+                    <button onClick={() => onReschedule(f)} className="shrink-0 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Reschedule</button>
                   </div>
                 </div>
               </article>
@@ -193,12 +193,12 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
-          <h2 className="text-lg font-bold text-slate-950 dark:text-white">{title}</h2>
+      <div className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-4 sm:px-6 dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="min-w-0 break-words text-base font-bold text-slate-950 sm:text-lg dark:text-white">{title}</h2>
           <button onClick={onClose} className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">Close</button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-4 sm:p-6">{children}</div>
       </div>
     </div>
   );

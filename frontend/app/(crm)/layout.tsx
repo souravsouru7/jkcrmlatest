@@ -17,6 +17,10 @@ const PRIMARY_NAV = [
 const SECONDARY_NAV = [
   { href: "/site-visits", label: "Site Visits" },
   { href: "/quotations", label: "Quotations" },
+  { href: "/negative-leads", label: "Negative Leads" },
+  { href: "/awaiting-response", label: "Awaiting Response" },
+  { href: "/follow-up-pending", label: "Follow-up Pending" },
+  { href: "/unqualified-leads", label: "Unqualified Leads" },
   { href: "/reports", label: "Reports" },
   { href: "/more", label: "More" },
 ];
@@ -69,7 +73,7 @@ export default function CrmLayout({ children }: { children: React.ReactNode }) {
   const isActive = (href: string) => pathname === href || pathname.startsWith(`${href}/`);
 
   const sidebar = (
-    <aside className="flex h-full w-72 flex-col border-r border-slate-200 bg-white/95 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95">
+    <aside className="flex h-full w-[min(18rem,86vw)] flex-col border-r border-slate-200 bg-white/95 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95">
       <div className="flex h-20 items-center gap-3 border-b border-slate-100 px-5 dark:border-slate-800">
         <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-sm font-black text-white shadow-lg shadow-blue-600/20">
           JK
@@ -137,7 +141,7 @@ export default function CrmLayout({ children }: { children: React.ReactNode }) {
       </div>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-20 items-center justify-between border-b border-slate-200 bg-white/80 px-4 backdrop-blur-xl sm:px-6 lg:px-8 dark:border-slate-800 dark:bg-slate-950/70">
+        <header className="flex min-h-16 items-center justify-between border-b border-slate-200 bg-white/80 px-3 py-3 backdrop-blur-xl sm:px-6 lg:min-h-20 lg:px-8 dark:border-slate-800 dark:bg-slate-950/70">
           <div className="flex items-center gap-3">
             <button className="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 lg:hidden dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300" onClick={() => setSidebarOpen(true)} aria-label="Open navigation">
               <span className="block h-0.5 w-5 bg-current" />
@@ -167,7 +171,7 @@ export default function CrmLayout({ children }: { children: React.ReactNode }) {
         </header>
 
         {actionsOpen && (
-          <div className="fixed right-6 top-20 z-40 w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl dark:border-slate-800 dark:bg-slate-900">
+          <div className="fixed right-3 top-16 z-40 w-[calc(100vw-1.5rem)] max-w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl sm:right-6 sm:top-20 dark:border-slate-800 dark:bg-slate-900">
             {ACTIONS.map((action) => (
               <Link key={action.label} href={action.href} onClick={() => setActionsOpen(false)} className="block rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-blue-500/10 dark:hover:text-blue-300">
                 {action.label}

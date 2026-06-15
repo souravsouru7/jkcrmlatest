@@ -4,24 +4,33 @@ import { config } from "../config/env.js";
 const STAGES = ["New Lead", "Contacted", "Qualified", "Site Visit", "Quotation", "Negotiation", "Won", "Lost"];
 const PRIORITIES = ["Hot", "Warm", "Cold"];
 const SOURCES = ["Website", "Instagram", "Facebook Ads", "WhatsApp", "Phone Call", "Walk-in", "Referral", "Marketplace", "Google Sheet", "Other"];
-const QUALITY_VALUES = ["Positive", "Negative", "Can't Say", "Awaiting Update", "#N/A"];
+const QUALITY_VALUES = ["Positive", "Negative", "Can't Say", "Awaiting Update", "N/A", "#N/A"];
 const QUALITY_TYPE_VALUES = [
+  "Out of Hyderabad",
   "Out of hyderabad",
+  "No Answer on Call/Msg",
   "No answer on call/msg",
+  "No Requirements",
   "No requirements",
   "Vendor/Contractors",
+  "Handover More Than 3 Months",
   "Handover more than 3 months",
+  "Invalid Number",
   "Invalid /Number not working",
   "Requirements Gathered",
   "Awaiting Update",
   "Requirement Scheduled",
   "Duplicate",
+  "Property Renovation",
   "Property Rennovation",
   "Package Shared",
   "Out Of Budget",
+  "Booked From Others",
   "Booked from Others",
   "Not In Scope",
+  "Quote Shared - Lost",
   "Quote Shared- Lost",
+  "Quote Shared - Awaiting Update",
   "quote shared-Awaiting Update",
   "Converted",
 ];
@@ -72,6 +81,8 @@ export async function submitLead(req, res) {
   }
 
   const now = new Date().toISOString();
+  const normalizedQuality = cleanQuality(quality);
+  const normalizedQualityType = QUALITY_TYPE_VALUES.includes(qualityType) ? qualityType : String(qualityType).trim();
   const lead = {
     id: Date.now(),
     Date: req.body.Date || "",
@@ -82,8 +93,8 @@ export async function submitLead(req, res) {
     "What type of home do you have?": project ? String(project).trim() : "",
     "What is your estimated interior budget?": budget ? String(budget).trim() : "",
     "Which location is your property in?": location ? String(location).trim() : "",
-    Quality: QUALITY_VALUES.includes(quality) ? quality : String(quality).trim(),
-    "Quality Type": QUALITY_TYPE_VALUES.includes(qualityType) ? qualityType : String(qualityType).trim(),
+    Quality: normalizedQuality,
+    "Quality Type": normalizedQualityType,
     "Initial Comments": message ? String(message).trim() : "",
     "Call 1": req.body["Call 1"] || "",
     "Call 2": req.body["Call 2"] || "",
@@ -100,8 +111,15 @@ export async function submitLead(req, res) {
     estimatedBudget: budget ? String(budget).trim() : "",
     sheetDate: req.body.Date || "",
     dob: req.body.DOB || "",
-    quality: QUALITY_VALUES.includes(quality) ? quality : String(quality).trim(),
-    qualityType: QUALITY_TYPE_VALUES.includes(qualityType) ? qualityType : String(qualityType).trim(),
+    quality: normalizedQuality,
+    qualityType: normalizedQualityType,
+    leadTemperature: "Warm",
+    callCount: 0,
+    callHistory: [],
+    lastCallDate: null,
+    nextFollowupDate: null,
+    internalRemarks: "",
+    salesRemarks: "",
     initialComments: message ? String(message).trim() : "",
     call1: req.body["Call 1"] || "",
     call2: req.body["Call 2"] || "",
@@ -115,6 +133,16 @@ export async function submitLead(req, res) {
     lastActivity: "Lead from website enquiry form",
     notes: message ? String(message).trim() : "",
     lostReason: null,
+    auditHistory: [
+      {
+        id: Date.now(),
+        action: "Lead created from website",
+        changedBy: "Website",
+        role: "public",
+        changes: { source: SOURCES.includes(source) ? source : "Website", stage: "New Lead" },
+        createdAt: now,
+      },
+    ],
     createdAt: now,
     updatedAt: now,
   };
@@ -202,6 +230,11 @@ function mapPriority(quality, isPositive) {
   return "Warm";
 }
 
+function cleanQuality(value) {
+  if (value === "#N/A") return "N/A";
+  return QUALITY_VALUES.includes(value) ? value : String(value || "Awaiting Update").trim();
+}
+
 function parseSheetDate(value) {
   if (!value) return null;
   const text = String(value).trim();
@@ -255,6 +288,8 @@ export async function googleSheetWebhook(req, res) {
 
   const now = new Date().toISOString();
   const createdAt = parseSheetDate(f.date) || now;
+  const normalizedQuality = cleanQuality(f.quality);
+  const normalizedQualityType = f.quality ? normalizeValue(f.qualityType) : normalizeValue(f.qualityType);
 
   const lead = {
     id: Date.now(),
@@ -266,8 +301,8 @@ export async function googleSheetWebhook(req, res) {
     "What type of home do you have?": f.project ? String(f.project).trim() : "",
     "What is your estimated interior budget?": f.budget ? String(f.budget).trim() : "",
     "Which location is your property in?": f.location ? String(f.location).trim() : "",
-    Quality: f.quality ? String(f.quality).trim() : "",
-    "Quality Type": f.qualityType ? String(f.qualityType).trim() : "",
+    Quality: normalizedQuality,
+    "Quality Type": normalizedQualityType,
     "Initial Comments": f.comments ? String(f.comments).trim() : "",
     "Call 1": f.call1 ? String(f.call1).trim() : "",
     "Call 2": f.call2 ? String(f.call2).trim() : "",
@@ -284,8 +319,15 @@ export async function googleSheetWebhook(req, res) {
     estimatedBudget: f.budget ? String(f.budget).trim() : "",
     sheetDate: f.date ? String(f.date).trim() : "",
     dob: f.dob ? String(f.dob).trim() : "",
-    quality: f.quality ? String(f.quality).trim() : "",
-    qualityType: f.qualityType ? String(f.qualityType).trim() : "",
+    quality: normalizedQuality,
+    qualityType: normalizedQualityType,
+    leadTemperature: mapPriority(f.quality),
+    callCount: 0,
+    callHistory: [],
+    lastCallDate: null,
+    nextFollowupDate: null,
+    internalRemarks: "",
+    salesRemarks: "",
     initialComments: f.comments ? String(f.comments).trim() : "",
     call1: f.call1 ? String(f.call1).trim() : "",
     call2: f.call2 ? String(f.call2).trim() : "",
@@ -299,6 +341,16 @@ export async function googleSheetWebhook(req, res) {
     lastActivity: `Lead synced from Google Sheet${sheetName ? ` (${sheetName})` : ""}`,
     notes:    noteParts.join(" | "),
     lostReason: null,
+    auditHistory: [
+      {
+        id: Date.now(),
+        action: "Lead synced from Google Sheet",
+        changedBy: "Google Sheet",
+        role: "integration",
+        changes: { source: mapPlatform(f.platform), stage: "New Lead", sheetName: sheetName || "" },
+        createdAt: now,
+      },
+    ],
     createdAt,
     updatedAt: now,
   };

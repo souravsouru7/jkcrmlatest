@@ -11,16 +11,17 @@ import { storage } from "@/lib/storage";
  *   Set NEXT_PUBLIC_API_URL=https://your-deployed-backend.com/api in .env.local
  *   or change ANDROID_EMULATOR_API below to your LAN IP for real device testing.
  */
+const LOCAL_API = "http://localhost:5000/api";
 const ANDROID_EMULATOR_API = "http://10.0.2.2:5000/api";
 
 function getBaseUrl(): string {
   if (process.env.NEXT_PUBLIC_API_URL) return process.env.NEXT_PUBLIC_API_URL;
-  if (typeof window === "undefined") return "http://localhost:5000/api";
+  if (typeof window === "undefined") return LOCAL_API;
   // Capacitor on Android emulator uses 10.0.2.2 to reach host machine's localhost
   if (window.location.protocol === "capacitor:" || window.Capacitor?.isNativePlatform?.()) {
     return ANDROID_EMULATOR_API;
   }
-  return "http://localhost:5000/api";
+  return LOCAL_API;
 }
 
 async function getToken(): Promise<string> {
@@ -79,6 +80,8 @@ export const api = {
     request<unknown>("/leads", { method: "POST", body: JSON.stringify(body) }),
   updateLead: (id: number, body: Record<string, unknown>) =>
     request<unknown>(`/leads/${id}`, { method: "PATCH", body: JSON.stringify(body) }),
+  updateQualification: (id: number, body: Record<string, unknown>) =>
+    request<{ lead: unknown; followUp?: unknown }>(`/leads/${id}/qualification`, { method: "PATCH", body: JSON.stringify(body) }),
   updateStage: (id: number, stage: string, lostReason?: string) =>
     request<unknown>(`/leads/${id}/stage`, { method: "PATCH", body: JSON.stringify({ stage, lostReason }) }),
   deleteLead: (id: number) => request<unknown>(`/leads/${id}`, { method: "DELETE" }),

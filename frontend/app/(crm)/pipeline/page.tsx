@@ -6,6 +6,7 @@ import { money, shortDate, STAGES, FOLLOW_UP_TYPES } from "@/lib/utils";
 import Badge from "@/components/Badge";
 import { EmptyState, PageHeader, Skeleton, buttonGhost, buttonPrimary, buttonSecondary, inputCls, labelCls, pageWrap, selectCls } from "@/components/CrmDesign";
 import LeadDetailDrawer from "@/components/LeadDetailDrawer";
+import UpdateLeadModal from "@/components/UpdateLeadModal";
 import type { Lead, Stage } from "@/lib/types";
 
 const PIPELINE_STAGES: Stage[] = ["New Lead", "Contacted", "Qualified", "Site Visit", "Quotation", "Negotiation", "Won"];
@@ -26,6 +27,7 @@ export default function PipelinePage() {
   const [loading, setLoading] = useState(true);
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
   const [loggingLead, setLoggingLead] = useState<Lead | null>(null);
+  const [updatingLead, setUpdatingLead] = useState<Lead | null>(null);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -71,7 +73,9 @@ export default function PipelinePage() {
     }
   }
 
-  const activeLeads = leads.filter((lead) => PIPELINE_STAGES.includes(lead.stage));
+  const isPositive = (lead: Lead) => (lead.quality || lead.Quality || "") === "Positive";
+  const pipelineStage = (lead: Lead): Stage => isPositive(lead) && lead.stage === "New Lead" ? "Contacted" : lead.stage;
+  const activeLeads = leads.filter((lead) => isPositive(lead) && PIPELINE_STAGES.includes(pipelineStage(lead)));
   const totalValue = activeLeads.reduce((sum, lead) => sum + (lead.budget || 0), 0);
   const wonValue = leads.filter((lead) => lead.stage === "Won").reduce((sum, lead) => sum + (lead.budget || 0), 0);
 
@@ -96,7 +100,7 @@ export default function PipelinePage() {
         <div className="overflow-x-auto pb-4">
           <div className="grid min-w-[1280px] grid-cols-7 gap-4">
             {PIPELINE_STAGES.map((stage) => {
-              const stageLeads = leads.filter((lead) => lead.stage === stage);
+              const stageLeads = leads.filter((lead) => isPositive(lead) && pipelineStage(lead) === stage);
               const value = stageLeads.reduce((sum, lead) => sum + (lead.budget || 0), 0);
               return (
                 <section
@@ -143,9 +147,10 @@ export default function PipelinePage() {
                             <span className="truncate text-xs text-slate-500 dark:text-slate-400">{lead.location}</span>
                             <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">{shortDate(lead.nextFollowUp)}</span>
                           </div>
-                          <select value={lead.stage} onClick={(e) => e.stopPropagation()} onChange={(e) => moveLead(lead.id, e.target.value as Stage)} className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                          <select value={pipelineStage(lead)} onClick={(e) => e.stopPropagation()} onChange={(e) => moveLead(lead.id, e.target.value as Stage)} className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
                             {STAGES.map((item) => <option key={item}>{item}</option>)}
                           </select>
+                          <button onClick={(e) => { e.stopPropagation(); setUpdatingLead(lead); }} className="mt-2 w-full rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">Update Lead</button>
                         </article>
                       ))}
                     </div>
@@ -186,6 +191,14 @@ export default function PipelinePage() {
             </div>
           </form>
         </Modal>
+      )}
+
+      {updatingLead && (
+        <UpdateLeadModal
+          lead={updatingLead}
+          onClose={() => setUpdatingLead(null)}
+          onSaved={(updated) => setLeads((prev) => prev.map((lead) => lead.id === updated.id ? updated : lead))}
+        />
       )}
     </div>
   );

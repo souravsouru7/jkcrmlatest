@@ -48,7 +48,7 @@ export default function ReminderBell() {
       </button>
 
       {open && (
-        <div className="absolute left-full top-0 ml-2 w-80 bg-white rounded-xl shadow-2xl border border-slate-200 z-50 overflow-hidden">
+        <div className="fixed right-3 top-16 z-50 w-[calc(100vw-1.5rem)] max-w-80 overflow-hidden rounded-xl border border-slate-200 bg-white shadow-2xl sm:absolute sm:left-auto sm:right-0 sm:top-11">
           {/* Header */}
           <div className="flex items-center justify-between px-4 py-3 border-b border-slate-100 bg-slate-50">
             <p className="font-bold text-sm text-slate-900">Reminders</p>
@@ -59,7 +59,7 @@ export default function ReminderBell() {
             )}
           </div>
 
-          <div className="max-h-[420px] overflow-y-auto divide-y divide-slate-100">
+          <div className="max-h-[min(420px,70vh)] overflow-y-auto divide-y divide-slate-100">
             {total === 0 && (
               <p className="text-sm text-slate-400 text-center py-8">All clear — no reminders</p>
             )}

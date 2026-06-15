@@ -46,6 +46,29 @@ export type Lead = {
   call3?: string;
   call4?: string;
   call5?: string;
+  leadTemperature?: Priority;
+  callCount?: number;
+  callHistory?: {
+    callNumber: number;
+    date: string;
+    notes: string;
+    outcome: string;
+    followUpType?: string;
+    nextFollowupDate?: string | null;
+    updatedBy?: string;
+  }[];
+  lastCallDate?: string | null;
+  nextFollowupDate?: string | null;
+  internalRemarks?: string;
+  salesRemarks?: string;
+  auditHistory?: {
+    id: number;
+    action: string;
+    changedBy: string;
+    role: string;
+    changes: Record<string, unknown>;
+    createdAt: string;
+  }[];
   stage: Stage;
   priority: Priority;
   owner: string;
@@ -210,6 +233,13 @@ export type Quotation = {
 export type DashboardSummary = {
   totalLeads: number;
   activeLeads: number;
+  positiveLeads?: number;
+  negativeLeads?: number;
+  hotLeads?: number;
+  warmLeads?: number;
+  coldLeads?: number;
+  awaitingUpdate?: number;
+  convertedLeads?: number;
   pipelineValue: number;
   wonValue: number;
   quoteValue: number;

@@ -1,4 +1,5 @@
 import { seedLeads, seedFollowUps, seedVisits, seedQuotations } from "../data/seed.js";
+import { config } from "../config/env.js";
 import { FollowUpModel, LeadModel } from "./mongo.js";
 
 const store = {
@@ -28,6 +29,34 @@ export async function hydrateStoreFromMongo() {
   }
 
   console.log(`Mongo data loaded -> ${store.leads.length} leads, ${store.followUps.length} follow-ups`);
+}
+
+export async function seedDemoDataIfEmpty() {
+  if (config.resetDemoData) {
+    await Promise.all([
+      LeadModel.deleteMany({}),
+      FollowUpModel.deleteMany({}),
+    ]);
+
+    if (seedLeads.length > 0) await LeadModel.insertMany(seedLeads);
+    if (seedFollowUps.length > 0) await FollowUpModel.insertMany(seedFollowUps);
+
+    console.log(`Demo data reset -> ${seedLeads.length} leads, ${seedFollowUps.length} follow-ups`);
+    return;
+  }
+
+  const leadCount = await LeadModel.countDocuments({});
+  const followUpCount = await FollowUpModel.countDocuments({});
+
+  if (leadCount === 0 && seedLeads.length > 0) {
+    await LeadModel.insertMany(seedLeads);
+    console.log(`Demo leads seeded -> ${seedLeads.length}`);
+  }
+
+  if (followUpCount === 0 && seedFollowUps.length > 0) {
+    await FollowUpModel.insertMany(seedFollowUps);
+    console.log(`Demo follow-ups seeded -> ${seedFollowUps.length}`);
+  }
 }
 
 export async function persistLead(lead) {

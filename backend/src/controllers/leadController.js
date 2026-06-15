@@ -2,27 +2,69 @@ import store, { deletePersistedLead, persistFollowUp, persistLead } from "../mod
 
 const STAGES = ["New Lead", "Contacted", "Qualified", "Site Visit", "Quotation", "Negotiation", "Won", "Lost"];
 const PRIORITIES = ["Hot", "Warm", "Cold"];
-const QUALITY_VALUES = ["Positive", "Negative", "Can't Say", "Awaiting Update", "#N/A"];
+const QUALITY_VALUES = ["Positive", "Negative", "Can't Say", "Awaiting Update", "N/A", "#N/A"];
 const QUALITY_TYPE_VALUES = [
+  "Out of Hyderabad",
   "Out of hyderabad",
+  "No Answer on Call/Msg",
   "No answer on call/msg",
+  "No Requirements",
   "No requirements",
   "Vendor/Contractors",
+  "Handover More Than 3 Months",
   "Handover more than 3 months",
+  "Invalid Number",
   "Invalid /Number not working",
   "Requirements Gathered",
   "Awaiting Update",
   "Requirement Scheduled",
   "Duplicate",
+  "Property Renovation",
   "Property Rennovation",
   "Package Shared",
   "Out Of Budget",
+  "Booked From Others",
   "Booked from Others",
   "Not In Scope",
+  "Quote Shared - Lost",
   "Quote Shared- Lost",
+  "Quote Shared - Awaiting Update",
   "quote shared-Awaiting Update",
   "Converted",
 ];
+
+function normalizeQuality(value) {
+  if (value === "#N/A") return "N/A";
+  return QUALITY_VALUES.includes(value) ? value : "Awaiting Update";
+}
+
+function normalizeQualityType(value) {
+  return QUALITY_TYPE_VALUES.includes(value) ? value : "Awaiting Update";
+}
+
+function appendAudit(lead, req, action, changes) {
+  const cleaned = Object.fromEntries(
+    Object.entries(changes).filter(([, value]) => value !== undefined)
+  );
+  lead.auditHistory = Array.isArray(lead.auditHistory) ? lead.auditHistory : [];
+  lead.auditHistory.push({
+    id: Date.now(),
+    action,
+    changedBy: req.user?.name || "Sales Admin",
+    role: req.user?.role || "admin",
+    changes: cleaned,
+    createdAt: new Date().toISOString(),
+  });
+}
+
+function routeLeadByQuality(lead, quality) {
+  if (quality === "Positive" && (lead.stage === "New Lead" || lead.stage === "Lost")) {
+    lead.stage = "Contacted";
+  }
+  if (quality === "Negative" || quality === "N/A") {
+    lead.stage = "Lost";
+  }
+}
 
 function firstValue(body, exactKey, fallbackKey = "") {
   const exact = body[exactKey];
@@ -63,7 +105,7 @@ export function getLeads(req, res) {
 
   if (stage) leads = leads.filter((l) => l.stage === stage);
   if (priority) leads = leads.filter((l) => l.priority === priority);
-  if (quality) leads = leads.filter((l) => (l.Quality || l.quality || "") === quality);
+  if (quality) leads = leads.filter((l) => normalizeQuality(l.Quality || l.quality || "") === normalizeQuality(String(quality)));
   if (qualityType) leads = leads.filter((l) => (l["Quality Type"] || l.qualityType || "") === qualityType);
   if (location) leads = leads.filter((l) => (l["Which location is your property in?"] || l.location || "") === location);
   if (date) leads = leads.filter((l) => String(l.Date || l.sheetDate || "").includes(String(date)));
@@ -127,6 +169,23 @@ export async function createLead(req, res) {
     dob: sheet.DOB,
     quality: sheet.Quality,
     qualityType: sheet["Quality Type"],
+    leadTemperature: PRIORITIES.includes(priority) ? priority : "Warm",
+    callCount: 0,
+    callHistory: [],
+    lastCallDate: null,
+    nextFollowupDate: nextFollowUp || null,
+    internalRemarks: "",
+    salesRemarks: "",
+    auditHistory: [
+      {
+        id: Date.now(),
+        action: "Lead created",
+        changedBy: req.user.name || "Sales Admin",
+        role: req.user.role || "admin",
+        changes: { source: "Manual Entry", stage: STAGES.includes(stage) ? stage : "New Lead" },
+        createdAt: now,
+      },
+    ],
     initialComments: sheet["Initial Comments"],
     call1: sheet["Call 1"],
     call2: sheet["Call 2"],
@@ -167,6 +226,7 @@ export async function createLead(req, res) {
 export async function updateLead(req, res) {
   const lead = store.leads.find((l) => l.id === Number(req.params.id));
   if (!lead) return res.status(404).json({ error: "Lead not found" });
+  const before = { ...lead };
 
   const allowed = [
     "Date",
@@ -193,6 +253,14 @@ export async function updateLead(req, res) {
     "project",
     "budget",
     "priority",
+    "leadTemperature",
+    "callCount",
+    "callHistory",
+    "lastCallDate",
+    "nextFollowupDate",
+    "internalRemarks",
+    "salesRemarks",
+    "auditHistory",
     "owner",
     "nextFollowUp",
     "notes",
@@ -217,10 +285,132 @@ export async function updateLead(req, res) {
   if (req.body["Call 3"] !== undefined) lead.call3 = req.body["Call 3"];
   if (req.body["Call 4"] !== undefined) lead.call4 = req.body["Call 4"];
   if (req.body["Call 5"] !== undefined) lead.call5 = req.body["Call 5"];
+  if (req.body.leadTemperature !== undefined) lead.priority = req.body.leadTemperature;
+  if (req.body.nextFollowupDate !== undefined) lead.nextFollowUp = req.body.nextFollowupDate;
+  if (req.body.quality !== undefined) lead.Quality = req.body.quality;
+  if (req.body.qualityType !== undefined) lead["Quality Type"] = req.body.qualityType;
+  appendAudit(lead, req, "Lead updated", {
+    quality: before.quality !== lead.quality ? lead.quality : undefined,
+    qualityType: before.qualityType !== lead.qualityType ? lead.qualityType : undefined,
+    stage: before.stage !== lead.stage ? lead.stage : undefined,
+    priority: before.priority !== lead.priority ? lead.priority : undefined,
+    nextFollowupDate: before.nextFollowupDate !== lead.nextFollowupDate ? lead.nextFollowupDate : undefined,
+  });
   lead.updatedAt = new Date().toISOString();
   await persistLead(lead);
 
   return res.json(lead);
+}
+
+export async function updateQualification(req, res) {
+  const lead = store.leads.find((l) => l.id === Number(req.params.id));
+  if (!lead) return res.status(404).json({ error: "Lead not found" });
+
+  const {
+    quality,
+    qualityType,
+    leadTemperature,
+    callNotes,
+    callOutcome,
+    internalRemarks,
+    salesRemarks,
+    nextFollowupDate,
+    followUpType,
+  } = req.body;
+
+  const now = new Date().toISOString();
+  const cleanQuality = normalizeQuality(String(quality || lead.quality || lead.Quality || "Awaiting Update"));
+  const cleanQualityType = normalizeQualityType(String(qualityType || lead.qualityType || lead["Quality Type"] || "Awaiting Update"));
+  const cleanTemperature = PRIORITIES.includes(leadTemperature) ? leadTemperature : lead.priority || "Warm";
+  const notes = callNotes ? String(callNotes).trim() : "";
+  const outcome = callOutcome ? String(callOutcome).trim() : "";
+  const remarks = internalRemarks ? String(internalRemarks).trim() : "";
+  const sales = salesRemarks ? String(salesRemarks).trim() : "";
+  const due = nextFollowupDate ? String(nextFollowupDate) : "";
+  const type = followUpType ? String(followUpType) : "Call";
+
+  const previous = {
+    quality: lead.quality || lead.Quality || "",
+    qualityType: lead.qualityType || lead["Quality Type"] || "",
+    leadTemperature: lead.leadTemperature || lead.priority || "",
+    stage: lead.stage,
+    nextFollowupDate: lead.nextFollowupDate || lead.nextFollowUp || null,
+  };
+
+  lead.Quality = cleanQuality;
+  lead.quality = cleanQuality;
+  lead["Quality Type"] = cleanQualityType;
+  lead.qualityType = cleanQualityType;
+  lead.leadTemperature = cleanTemperature;
+  lead.priority = cleanTemperature;
+  lead.internalRemarks = remarks || lead.internalRemarks || "";
+  lead.salesRemarks = sales || lead.salesRemarks || "";
+  lead.nextFollowupDate = due || lead.nextFollowupDate || null;
+  lead.nextFollowUp = due || lead.nextFollowUp || null;
+  lead.lastActivity = `Lead qualification updated: ${cleanQuality}`;
+  lead.updatedAt = now;
+
+  if (notes || outcome) {
+    lead.callHistory = Array.isArray(lead.callHistory) ? lead.callHistory : [];
+    const callNumber = (Number(lead.callCount) || lead.callHistory.length || 0) + 1;
+    const call = {
+      callNumber,
+      date: now,
+      notes,
+      outcome,
+      followUpType: type,
+      nextFollowupDate: due || null,
+      updatedBy: req.user?.name || "Sales Admin",
+    };
+    lead.callHistory.push(call);
+    lead.callCount = callNumber;
+    lead.lastCallDate = now;
+
+    if (callNumber <= 5) {
+      const sheetCall = `Date: ${now.slice(0, 10)} | Outcome: ${outcome || "-"} | Notes: ${notes || "-"}`;
+      lead[`Call ${callNumber}`] = sheetCall;
+      lead[`call${callNumber}`] = sheetCall;
+    }
+  } else {
+    lead.callHistory = Array.isArray(lead.callHistory) ? lead.callHistory : [];
+    lead.callCount = Number(lead.callCount) || lead.callHistory.length || 0;
+  }
+
+  routeLeadByQuality(lead, cleanQuality);
+
+  let followUp = null;
+  if (due) {
+    followUp = {
+      id: Date.now() + 1,
+      leadId: lead.id,
+      type,
+      due,
+      status: "Pending",
+      outcome: outcome || `Follow up ${cleanQuality} lead`,
+      notes,
+      createdAt: now,
+    };
+    store.followUps.unshift(followUp);
+  }
+
+  appendAudit(lead, req, "Lead qualification updated", {
+    previous,
+    quality: cleanQuality,
+    qualityType: cleanQualityType,
+    leadTemperature: cleanTemperature,
+    callNotes: notes,
+    callOutcome: outcome,
+    internalRemarks: remarks,
+    salesRemarks: sales,
+    nextFollowupDate: due || null,
+    followUpType: type,
+    stage: lead.stage,
+    callCount: lead.callCount,
+  });
+
+  await Promise.all([persistLead(lead), followUp ? persistFollowUp(followUp) : Promise.resolve()]);
+
+  return res.json({ lead, followUp });
 }
 
 export async function updateStage(req, res) {
@@ -233,6 +423,7 @@ export async function updateStage(req, res) {
   lead.stage = stage;
   lead.lastActivity = `Moved to ${stage}`;
   if (stage === "Lost" && lostReason) lead.lostReason = lostReason;
+  appendAudit(lead, req, "Stage updated", { stage, lostReason });
   lead.updatedAt = new Date().toISOString();
   await persistLead(lead);
 

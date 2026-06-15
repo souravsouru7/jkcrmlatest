@@ -72,14 +72,14 @@ export default function SiteVisitsPage() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-[380px_1fr]">
         <Section title="Weekly visit planner" subtitle="Calendar-first overview for managers.">
-          <div className="grid grid-cols-7 gap-2 p-4">
+          <div className="grid grid-cols-7 gap-1 overflow-x-auto p-3 sm:gap-2 sm:p-4">
             {Array.from({ length: 7 }).map((_, index) => {
               const day = new Date();
               day.setDate(day.getDate() + index);
               const key = day.toISOString().slice(0, 10);
               const count = scheduled.filter((visit) => visit.date?.slice(0, 10) === key).length;
               return (
-                <div key={key} className={`rounded-2xl border p-3 text-center ${index === 0 ? "border-blue-600 bg-blue-50 dark:bg-blue-500/10" : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"}`}>
+                <div key={key} className={`min-w-16 rounded-2xl border p-2 text-center sm:p-3 ${index === 0 ? "border-blue-600 bg-blue-50 dark:bg-blue-500/10" : "border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-950"}`}>
                   <p className="text-[11px] font-semibold uppercase text-slate-500 dark:text-slate-400">{day.toLocaleDateString("en-IN", { weekday: "short" })}</p>
                   <p className="mt-1 text-lg font-bold text-slate-950 dark:text-white">{day.getDate()}</p>
                   <p className="mt-1 text-xs font-semibold text-blue-600 dark:text-blue-400">{count} visit{count === 1 ? "" : "s"}</p>
@@ -145,7 +145,7 @@ export default function SiteVisitsPage() {
             <Field label="Visit Date *"><input name="date" type="date" required className={inputCls} /></Field>
             <Field label="Property Address *"><input name="address" required placeholder="Full address with pincode" className={inputCls} /></Field>
             <Field label="Notes"><textarea name="notes" rows={3} placeholder="What to bring, scope, special instructions..." className={inputCls} /></Field>
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
               <button type="button" onClick={() => setShowForm(false)} className={buttonSecondary}>Cancel</button>
               <button type="submit" className={buttonPrimary}>Schedule Visit</button>
             </div>
@@ -175,12 +175,12 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
-          <h2 className="text-lg font-bold text-slate-950 dark:text-white">{title}</h2>
+      <div className="relative max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-4 sm:px-6 dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="min-w-0 break-words text-base font-bold text-slate-950 sm:text-lg dark:text-white">{title}</h2>
           <button onClick={onClose} className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">Close</button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-4 sm:p-6">{children}</div>
       </div>
     </div>
   );

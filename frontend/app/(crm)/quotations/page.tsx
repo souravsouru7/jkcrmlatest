@@ -144,13 +144,13 @@ export default function QuotationsPage() {
           <form onSubmit={handleCreate} className="space-y-4">
             <Field label="Lead *"><select name="leadId" required className={selectCls}><option value="">Select lead</option>{leads.filter((l) => !["Won", "Lost"].includes(l.stage)).map((l) => <option key={l.id} value={l.id}>{l.name} - {l.project}</option>)}</select></Field>
             <Field label="Total Amount *"><input name="amount" type="number" required min="0" className={inputCls} placeholder="0" /></Field>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field label="Discount"><input name="discount" type="number" min="0" defaultValue="0" className={inputCls} /></Field>
               <Field label="Tax"><input name="tax" type="number" min="0" defaultValue="0" className={inputCls} /></Field>
             </div>
             <Field label="Valid Till *"><input name="validTill" type="date" required className={inputCls} /></Field>
             <Field label="Payment Terms"><textarea name="terms" rows={3} placeholder="50% advance, balance on completion..." className={inputCls} /></Field>
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
               <button type="button" onClick={() => setShowForm(false)} className={buttonSecondary}>Cancel</button>
               <button type="submit" className={buttonPrimary}>Create Quote</button>
             </div>
@@ -188,11 +188,11 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4 dark:border-slate-800 dark:bg-slate-900">
-          <h2 className="text-lg font-bold text-slate-950 dark:text-white">{title}</h2>
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-4 sm:px-6 dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="min-w-0 break-words text-base font-bold text-slate-950 sm:text-lg dark:text-white">{title}</h2>
           <button onClick={onClose} className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">Close</button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-4 sm:p-6">{children}</div>
       </div>
     </div>
   );
@@ -204,16 +204,16 @@ function QuotePreview({ quote, lead, onClose }: { quote: Quotation; lead?: Lead;
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose} />
       <div className="relative max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
-        <div className="flex items-center justify-between border-b border-slate-100 px-6 py-4 dark:border-slate-800">
+        <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-6 dark:border-slate-800">
           <div>
-            <h2 className="text-lg font-bold text-slate-950 dark:text-white">Professional Quote Preview</h2>
+            <h2 className="break-words text-base font-bold text-slate-950 sm:text-lg dark:text-white">Professional Quote Preview</h2>
             <p className="mt-0.5 font-mono text-xs text-slate-500 dark:text-slate-400">{quote.number}</p>
           </div>
           <button onClick={onClose} className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">Close</button>
         </div>
 
-        <div className="p-6">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-6 dark:border-slate-800 dark:bg-slate-950">
+        <div className="p-4 sm:p-6">
+          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-6 dark:border-slate-800 dark:bg-slate-950">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
               <div>
                 <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-sm font-black text-white">JK</div>
@@ -235,7 +235,7 @@ function QuotePreview({ quote, lead, onClose }: { quote: Quotation; lead?: Lead;
               </div>
               <div className="rounded-2xl bg-white p-4 dark:bg-slate-900">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Commercial Summary</p>
-                <p className="mt-2 text-3xl font-bold text-slate-950 dark:text-white">{money(net)}</p>
+                <p className="mt-2 break-words text-2xl font-bold text-slate-950 sm:text-3xl dark:text-white">{money(net)}</p>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Inclusive of configured discount and tax</p>
               </div>
             </div>
@@ -249,7 +249,7 @@ function QuotePreview({ quote, lead, onClose }: { quote: Quotation; lead?: Lead;
               ].map(([label, value]) => (
                 <div key={label} className="flex items-center justify-between border-b border-slate-100 px-5 py-4 last:border-b-0 dark:border-slate-800">
                   <span className="text-sm font-semibold text-slate-600 dark:text-slate-300">{label}</span>
-                  <span className="text-sm font-bold text-slate-950 dark:text-white">{value}</span>
+                  <span className="text-right text-sm font-bold text-slate-950 dark:text-white">{value}</span>
                 </div>
               ))}
             </div>
@@ -262,7 +262,7 @@ function QuotePreview({ quote, lead, onClose }: { quote: Quotation; lead?: Lead;
             )}
           </div>
 
-          <div className="mt-5 flex justify-end gap-3">
+          <div className="mt-5 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
             <button onClick={() => window.print()} className={buttonSecondary}>PDF Download</button>
             <button onClick={onClose} className={buttonPrimary}>Done</button>
           </div>

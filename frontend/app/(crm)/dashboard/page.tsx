@@ -83,6 +83,19 @@ export default function DashboardPage() {
         </div>
       )}
 
+      {!loading && (
+        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-8">
+          <StatCard href="/leads" label="Total Leads" value={s?.totalLeads ?? 0} sub="All enquiries" tone="slate" />
+          <StatCard href="/pipeline" label="Positive Leads" value={s?.positiveLeads ?? 0} sub="Pipeline eligible" tone="green" />
+          <StatCard href="/negative-leads" label="Negative Leads" value={s?.negativeLeads ?? 0} sub="Not progressing" tone="red" />
+          <StatCard href="/leads" label="Hot Leads" value={s?.hotLeads ?? 0} sub="Temperature" tone="amber" />
+          <StatCard href="/leads" label="Warm Leads" value={s?.warmLeads ?? 0} sub="Temperature" tone="blue" />
+          <StatCard href="/leads" label="Cold Leads" value={s?.coldLeads ?? 0} sub="Temperature" tone="slate" />
+          <StatCard href="/follow-up-pending" label="Awaiting Update" value={s?.awaitingUpdate ?? 0} sub="Follow-up pending" tone="blue" />
+          <StatCard href="/reports" label="Converted Leads" value={s?.convertedLeads ?? 0} sub="Won or converted" tone="green" />
+        </div>
+      )}
+
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
         <Section
           title="Priority work queue"

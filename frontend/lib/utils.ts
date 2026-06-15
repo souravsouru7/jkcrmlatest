@@ -44,6 +44,7 @@ export const FOLLOW_UP_TYPES = [
   "Email",
   "Site Visit",
   "Quotation Discussion",
+  "First Call",
   "Booking Call",
   "Other",
 ];
@@ -53,26 +54,28 @@ export const QUALITY_VALUES = [
   "Negative",
   "Can't Say",
   "Awaiting Update",
-  "#N/A",
+  "N/A",
 ] as const;
 
 export const QUALITY_TYPE_VALUES = [
-  "Out of hyderabad",
-  "No answer on call/msg",
-  "No requirements",
+  "Out of Hyderabad",
+  "No Answer on Call/Msg",
+  "No Requirements",
   "Vendor/Contractors",
-  "Handover more than 3 months",
-  "Invalid /Number not working",
+  "Handover More Than 3 Months",
+  "Invalid Number",
   "Requirements Gathered",
   "Awaiting Update",
   "Requirement Scheduled",
   "Duplicate",
-  "Property Rennovation",
+  "Property Renovation",
   "Package Shared",
   "Out Of Budget",
-  "Booked from Others",
+  "Booked From Others",
   "Not In Scope",
-  "Quote Shared- Lost",
-  "quote shared-Awaiting Update",
+  "Quote Shared - Lost",
+  "Quote Shared - Awaiting Update",
   "Converted",
 ] as const;
+
+export const LEAD_TEMPERATURES = ["Hot", "Warm", "Cold"] as const;

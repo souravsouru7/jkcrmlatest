@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api } from "@/lib/api";
-import { FOLLOW_UP_TYPES, QUALITY_TYPE_VALUES, QUALITY_VALUES, shortDate } from "@/lib/utils";
+import { FOLLOW_UP_TYPES, LEAD_TEMPERATURES, QUALITY_TYPE_VALUES, QUALITY_VALUES, shortDate } from "@/lib/utils";
 import Badge from "@/components/Badge";
 import { EmptyState, PageHeader, Section, Skeleton, buttonGhost, buttonPrimary, buttonSecondary, inputCls, labelCls, pageWrap, selectCls } from "@/components/CrmDesign";
 import type { Lead } from "@/lib/types";
@@ -19,6 +19,7 @@ export default function LeadsPage() {
   const [showForm, setShowForm] = useState(false);
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
   const [loggingLead, setLoggingLead] = useState<Lead | null>(null);
+  const [updatingLead, setUpdatingLead] = useState<Lead | null>(null);
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -94,6 +95,23 @@ export default function LeadsPage() {
     }
   }
 
+  async function handleQualificationUpdate(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    if (!updatingLead) return;
+    setSaving(true);
+    const fd = new FormData(e.currentTarget);
+    const body = Object.fromEntries(fd.entries());
+    try {
+      const result = await api.updateQualification(updatingLead.id, body as Record<string, unknown>);
+      setLeads((prev) => prev.map((lead) => lead.id === updatingLead.id ? result.lead as Lead : lead));
+    } catch (err: any) {
+      alert(err.message || "Failed to update lead");
+    } finally {
+      setSaving(false);
+      setUpdatingLead(null);
+    }
+  }
+
   async function handleDelete(id: number) {
     if (!window.confirm("Are you sure you want to delete this lead? This action cannot be undone.")) return;
     try {
@@ -115,8 +133,8 @@ export default function LeadsPage() {
       />
 
       <Section title="Search and filters" subtitle="Filter by Quality, Quality Type, Location, Date, and Budget.">
-        <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-6">
-          <div className="lg:col-span-2">
+        <div className="grid grid-cols-1 gap-3 p-3 sm:p-4 md:grid-cols-2 xl:grid-cols-6">
+          <div className="md:col-span-2 xl:col-span-2">
             <label className={labelCls}>Search</label>
             <input className={inputCls} placeholder="Search exact sheet fields..." value={query} onChange={(e) => setQuery(e.target.value)} />
           </div>
@@ -127,7 +145,7 @@ export default function LeadsPage() {
             <label className={labelCls}>Date</label>
             <input className={inputCls} value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} placeholder="Date" />
           </div>
-          <div className="lg:col-span-2">
+          <div className="md:col-span-2 xl:col-span-2">
             <label className={labelCls}>Budget</label>
             <input className={inputCls} value={budgetFilter} onChange={(e) => setBudgetFilter(e.target.value)} placeholder="Budget text" />
           </div>
@@ -149,7 +167,7 @@ export default function LeadsPage() {
               const budget = sheetValue(lead, "What is your estimated interior budget?");
               const quality = sheetValue(lead, "Quality") || "#N/A";
               return (
-                <div key={lead.id} onClick={() => setActiveLead(lead)} className="grid cursor-pointer gap-4 px-5 py-4 hover:bg-slate-50 lg:grid-cols-[minmax(260px,1.2fr)_1fr_220px_240px] lg:items-center dark:hover:bg-slate-800/60">
+                <div key={lead.id} onClick={() => setActiveLead(lead)} className="grid cursor-pointer gap-4 px-5 py-4 hover:bg-slate-50 lg:grid-cols-[minmax(260px,1fr)_minmax(220px,1fr)] xl:grid-cols-[minmax(260px,1.1fr)_minmax(220px,0.9fr)_minmax(260px,0.9fr)_minmax(430px,1.3fr)] lg:items-center dark:hover:bg-slate-800/60">
                   <div className="flex min-w-0 items-center gap-3">
                     <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-sm font-bold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
                       {(name || "NA").slice(0, 2).toUpperCase()}
@@ -163,16 +181,17 @@ export default function LeadsPage() {
                     <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{sheetValue(lead, "What type of home do you have?") || "No home type"}</p>
                     <p className="truncate text-xs text-slate-500 dark:text-slate-400">{budget || "No budget"} - {shortDate(sheetValue(lead, "Date"))}</p>
                   </div>
-                  <div className="flex flex-wrap items-center gap-2">
+                  <div className="flex min-w-0 flex-wrap items-center gap-2">
                     <Badge value={quality} />
                     {sheetValue(lead, "Quality Type") && <Badge value={sheetValue(lead, "Quality Type")} />}
                   </div>
-                  <div className="flex items-center justify-start gap-2 lg:justify-end" onClick={(e) => e.stopPropagation()}>
-                    {phone && <a href={`tel:${phone}`} className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Call</a>}
-                    {phone && <a href={`https://wa.me/${normalizePhone(phone)}`} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">WhatsApp</a>}
-                    {email && <a href={`mailto:${email}`} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Email</a>}
-                    <button onClick={() => setLoggingLead(lead)} className="rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Log</button>
-                    <button onClick={() => handleDelete(lead.id)} className="rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">Delete</button>
+                  <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 xl:justify-end" onClick={(e) => e.stopPropagation()}>
+                    {phone && <a href={`tel:${phone}`} className="shrink-0 rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Call</a>}
+                    {phone && <a href={`https://wa.me/${normalizePhone(phone)}`} className="shrink-0 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">WhatsApp</a>}
+                    {email && <a href={`mailto:${email}`} className="shrink-0 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Email</a>}
+                    <button onClick={() => setUpdatingLead(lead)} className="shrink-0 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">Update Lead</button>
+                    <button onClick={() => setLoggingLead(lead)} className="shrink-0 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Log</button>
+                    <button onClick={() => handleDelete(lead.id)} className="shrink-0 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">Delete</button>
                   </div>
                 </div>
               );
@@ -214,7 +233,7 @@ export default function LeadsPage() {
               <Field label="Call 4"><input name="Call 4" className={inputCls} /></Field>
               <Field label="Call 5"><input name="Call 5" className={inputCls} /></Field>
             </div>
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
               <button type="button" onClick={() => setShowForm(false)} className={buttonSecondary}>Cancel</button>
               <button type="submit" disabled={saving} className={buttonPrimary}>{saving ? "Creating..." : "Create Lead"}</button>
             </div>
@@ -231,9 +250,43 @@ export default function LeadsPage() {
             </div>
             <Field label="Outcome"><input name="outcome" className={inputCls} placeholder="Connected, asked for quote, no answer..." /></Field>
             <Field label="Notes"><textarea name="notes" rows={3} className={inputCls} placeholder="Conversation details and commitment..." /></Field>
-            <div className="flex justify-end gap-3 pt-2">
+            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
               <button type="button" onClick={() => setLoggingLead(null)} className={buttonSecondary}>Cancel</button>
               <button type="submit" disabled={saving} className={buttonPrimary}>{saving ? "Saving..." : "Save Log"}</button>
+            </div>
+          </form>
+        </Modal>
+      )}
+
+      {updatingLead && (
+        <Modal title={`Update Lead - ${sheetValue(updatingLead, "Name") || "Lead"}`} onClose={() => setUpdatingLead(null)} max="max-w-3xl">
+          <form onSubmit={handleQualificationUpdate} className="space-y-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <Field label="Quality"><select name="quality" defaultValue={updatingLead.quality || sheetValue(updatingLead, "Quality") || "Awaiting Update"} className={selectCls}>{QUALITY_VALUES.map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
+              <Field label="Quality Type"><select name="qualityType" defaultValue={updatingLead.qualityType || sheetValue(updatingLead, "Quality Type") || "Awaiting Update"} className={selectCls}>{QUALITY_TYPE_VALUES.map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
+              <Field label="Lead Temperature"><select name="leadTemperature" defaultValue={updatingLead.leadTemperature || updatingLead.priority || "Warm"} className={selectCls}>{LEAD_TEMPERATURES.map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
+              <Field label="Follow-up Type"><select name="followUpType" defaultValue="Call" className={selectCls}>{FOLLOW_UP_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}</select></Field>
+              <Field label="Next Follow-up Date"><input name="nextFollowupDate" type="date" defaultValue={updatingLead.nextFollowupDate || updatingLead.nextFollowUp || ""} className={inputCls} /></Field>
+              <Field label="Call Outcome"><input name="callOutcome" className={inputCls} placeholder="Connected, no answer, converted..." /></Field>
+              <div className="sm:col-span-2"><Field label="Call Notes"><textarea name="callNotes" rows={3} className={inputCls} placeholder="Conversation summary, requirement, budget, objections..." /></Field></div>
+              <div className="sm:col-span-2"><Field label="Internal Remarks"><textarea name="internalRemarks" rows={2} defaultValue={updatingLead.internalRemarks || ""} className={inputCls} /></Field></div>
+              <div className="sm:col-span-2"><Field label="Sales Remarks"><textarea name="salesRemarks" rows={2} defaultValue={updatingLead.salesRemarks || ""} className={inputCls} /></Field></div>
+            </div>
+            <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 dark:border-slate-800 dark:bg-slate-950">
+              <p className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">Call History</p>
+              <div className="mt-3 space-y-2">
+                {(updatingLead.callHistory || []).slice(-5).map((call) => (
+                  <div key={`${call.callNumber}-${call.date}`} className="rounded-xl bg-white p-3 text-sm dark:bg-slate-900">
+                    <p className="font-semibold text-slate-900 dark:text-white">Call {call.callNumber} - {shortDate(call.date)}</p>
+                    <p className="text-slate-500 dark:text-slate-400">{call.outcome || "No outcome"} - {call.notes || "No notes"}</p>
+                  </div>
+                ))}
+                {!(updatingLead.callHistory || []).length && <p className="text-sm text-slate-500 dark:text-slate-400">No calls logged yet.</p>}
+              </div>
+            </div>
+            <div className="flex flex-col-reverse gap-3 pt-2 sm:flex-row sm:justify-end">
+              <button type="button" onClick={() => setUpdatingLead(null)} className={buttonSecondary}>Cancel</button>
+              <button type="submit" disabled={saving} className={buttonPrimary}>{saving ? "Updating..." : "Update Lead"}</button>
             </div>
           </form>
         </Modal>
@@ -274,6 +327,14 @@ function sheetPayloadToLead(body: Record<string, FormDataEntryValue>, now: strin
     dob: value("DOB"),
     quality: value("Quality"),
     qualityType: value("Quality Type"),
+    leadTemperature: "Warm",
+    callCount: 0,
+    callHistory: [],
+    lastCallDate: null,
+    nextFollowupDate: null,
+    internalRemarks: "",
+    salesRemarks: "",
+    auditHistory: [],
     initialComments: value("Initial Comments"),
     call1: value("Call 1"),
     call2: value("Call 2"),
@@ -311,15 +372,13 @@ function Modal({ title, children, onClose, max = "max-w-xl" }: { title: string; 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose} />
-      <div className={`relative max-h-[90vh] w-full ${max} overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900`}>
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-100 bg-white px-6 py-4 dark:border-slate-800 dark:bg-slate-900">
-          <h2 className="text-lg font-bold text-slate-950 dark:text-white">{title}</h2>
+      <div className={`relative max-h-[92vh] w-full ${max} overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900`}>
+        <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-4 sm:px-6 dark:border-slate-800 dark:bg-slate-900">
+          <h2 className="min-w-0 break-words text-base font-bold text-slate-950 sm:text-lg dark:text-white">{title}</h2>
           <button onClick={onClose} className={buttonGhost}>Close</button>
         </div>
-        <div className="p-6">{children}</div>
+        <div className="p-4 sm:p-6">{children}</div>
       </div>
     </div>
   );
 }
-
-
