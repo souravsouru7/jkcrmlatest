@@ -1,13 +1,13 @@
 import Link from "next/link";
 import type { ReactNode } from "react";
 
-export const pageWrap = "mx-auto max-w-[1500px] space-y-5 p-3 sm:space-y-6 sm:p-6 lg:p-8";
-export const card = "rounded-2xl border border-slate-200 bg-white shadow-sm shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20";
-export const softCard = "rounded-2xl border border-slate-200 bg-white/80 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-black/20";
-export const buttonPrimary = "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-600/20 hover:bg-blue-700 disabled:opacity-60";
-export const buttonSecondary = "inline-flex min-h-10 items-center justify-center gap-2 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800";
-export const buttonGhost = "inline-flex items-center justify-center gap-2 rounded-xl px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white";
-export const inputCls = "w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:placeholder-slate-500";
+export const pageWrap = "mx-auto max-w-[1500px] space-y-4 p-3 pb-28 sm:space-y-5 sm:p-6 sm:pb-28 lg:p-8 lg:pb-8";
+export const card = "rounded-lg border border-slate-200 bg-white shadow-sm shadow-slate-200/60 dark:border-slate-800 dark:bg-slate-900 dark:shadow-black/20";
+export const softCard = "rounded-lg border border-slate-200 bg-white/80 shadow-sm shadow-slate-200/60 backdrop-blur dark:border-slate-800 dark:bg-slate-900/80 dark:shadow-black/20";
+export const buttonPrimary = "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-600/20 hover:bg-blue-700 disabled:opacity-60";
+export const buttonSecondary = "inline-flex min-h-11 items-center justify-center gap-2 rounded-lg border border-slate-200 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:border-slate-300 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200 dark:hover:bg-slate-800";
+export const buttonGhost = "inline-flex min-h-10 items-center justify-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white";
+export const inputCls = "w-full rounded-lg border border-slate-200 bg-white px-3.5 py-3 text-sm text-slate-900 placeholder-slate-400 outline-none focus:border-blue-600 focus:ring-4 focus:ring-blue-600/10 dark:border-slate-700 dark:bg-slate-950 dark:text-white dark:placeholder-slate-500";
 export const selectCls = inputCls;
 export const labelCls = "mb-1.5 block text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400";
 
@@ -23,7 +23,7 @@ export function PageHeader({
   action?: ReactNode;
 }) {
   return (
-    <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-end lg:justify-between">
       <div className="min-w-0">
         {eyebrow && <p className="text-xs font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">{eyebrow}</p>}
         <h1 className="mt-1 break-words text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl dark:text-white">{title}</h1>
@@ -86,7 +86,7 @@ export function StatCard({
 
   const content = (
     <div className={`${card} p-4 hover:-translate-y-0.5 hover:shadow-md`}>
-      <div className={`mb-4 inline-flex h-9 w-9 items-center justify-center rounded-xl ring-1 ${toneMap}`}>
+      <div className={`mb-4 inline-flex h-9 w-9 items-center justify-center rounded-lg ring-1 ${toneMap}`}>
         <span aria-hidden="true" className="text-sm font-black">+</span>
       </div>
       <p className="text-2xl font-bold tracking-tight text-slate-950 dark:text-white">{value}</p>
@@ -101,7 +101,7 @@ export function StatCard({
 export function EmptyState({ title, subtitle }: { title: string; subtitle?: string }) {
   return (
     <div className="p-12 text-center">
-      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl bg-slate-100 text-slate-400 dark:bg-slate-800">
+      <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-lg bg-slate-100 text-slate-400 dark:bg-slate-800">
         +
       </div>
       <p className="text-sm font-semibold text-slate-900 dark:text-white">{title}</p>
@@ -111,5 +111,5 @@ export function EmptyState({ title, subtitle }: { title: string; subtitle?: stri
 }
 
 export function Skeleton({ className = "" }: { className?: string }) {
-  return <div className={`animate-pulse rounded-xl bg-slate-200 dark:bg-slate-800 ${className}`} />;
+  return <div className={`animate-pulse rounded-lg bg-slate-200 dark:bg-slate-800 ${className}`} />;
 }

@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { api } from "@/lib/api";
 import { money } from "@/lib/utils";
+import { EmptyState, PageHeader, Section, Skeleton, StatCard, pageWrap } from "@/components/CrmDesign";
 import type { DashboardSummary } from "@/lib/types";
 
 type DashData = {
@@ -14,10 +15,6 @@ type DashData = {
   temperatureBreakdown: { temperature: string; count: number }[];
   salesExecutiveBreakdown: { salesExecutive: string; count: number }[];
 };
-
-function Skeleton({ className }: { className?: string }) {
-  return <div className={`bg-slate-800 rounded-lg animate-pulse ${className}`} />;
-}
 
 export default function ReportsPage() {
   const [data, setData] = useState<DashData | null>(null);
@@ -31,184 +28,153 @@ export default function ReportsPage() {
   }, []);
 
   const s = data?.summary;
-  const maxStageCount = Math.max(...(data?.stageBreakdown?.map((r) => r.count) ?? [1]), 1);
-  const maxSourceCount = Math.max(...(data?.sourceBreakdown?.map((r) => r.count) ?? [1]), 1);
-  const maxStageValue = Math.max(...(data?.stageBreakdown?.map((r) => r.value) ?? [1]), 1);
-
-  const kpis = [
-    { label: "Total Leads", value: String(s?.totalLeads ?? 0), sub: "All time", color: "text-white" },
-    { label: "Positive Leads", value: String(s?.positiveLeads ?? 0), sub: "Pipeline eligible", color: "text-emerald-400" },
-    { label: "Negative Leads", value: String(s?.negativeLeads ?? 0), sub: "Disqualified", color: "text-red-400" },
-    { label: "Converted Leads", value: String(s?.convertedLeads ?? 0), sub: "Won or converted", color: "text-teal-400" },
-    { label: "Pipeline Value", value: s ? money(s.pipelineValue) : "₹0", sub: "Active deals", color: "text-white" },
-    { label: "Won Revenue", value: s ? money(s.wonValue) : "₹0", sub: "Closed won", color: "text-emerald-400" },
-    { label: "Conversion Rate", value: s ? `${s.conversion}%` : "0%", sub: "Win rate", color: "text-teal-400" },
-  ];
+  const maxStageCount = Math.max(...(data?.stageBreakdown?.map((row) => row.count) ?? [1]), 1);
+  const maxStageValue = Math.max(...(data?.stageBreakdown?.map((row) => row.value) ?? [1]), 1);
+  const maxSourceCount = Math.max(...(data?.sourceBreakdown?.map((row) => row.count) ?? [1]), 1);
 
   return (
-    <div className="mx-auto max-w-[1400px] space-y-5 p-3 sm:space-y-6 sm:p-6">
-      {/* Page header */}
-      <div>
-        <h1 className="break-words text-2xl font-bold text-white">Reports</h1>
-        <p className="text-slate-500 text-sm mt-0.5">Sales performance &amp; pipeline analytics</p>
-      </div>
+    <div className={pageWrap}>
+      <PageHeader
+        eyebrow="Executive analytics"
+        title="Reports"
+        subtitle="Conversion, source performance, sales ownership, and revenue movement."
+      />
 
-      {/* KPI cards */}
       {loading ? (
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4">
-          {Array.from({ length: 7 }).map((_, i) => <Skeleton key={i} className="h-24" />)}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
+          {Array.from({ length: 7 }).map((_, index) => <Skeleton key={index} className="h-32" />)}
         </div>
       ) : (
-        <div className="grid grid-cols-2 md:grid-cols-4 xl:grid-cols-7 gap-4">
-          {kpis.map(({ label, value, sub, color }) => (
-            <div key={label} className="bg-slate-900 border border-slate-800 rounded-xl p-5">
-              <p className="text-slate-500 text-xs font-medium mb-2">{label}</p>
-              <p className={`text-2xl font-bold ${color}`}>{value}</p>
-              <p className="text-slate-600 text-xs mt-1">{sub}</p>
-            </div>
-          ))}
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-7">
+          <StatCard label="Total Leads" value={s?.totalLeads ?? 0} sub="All enquiries" tone="slate" />
+          <StatCard label="Positive" value={s?.positiveLeads ?? 0} sub="Pipeline eligible" tone="green" />
+          <StatCard label="Negative" value={s?.negativeLeads ?? 0} sub="Disqualified" tone="red" />
+          <StatCard label="Converted" value={s?.convertedLeads ?? 0} sub="Won or converted" tone="green" />
+          <StatCard label="Pipeline" value={s ? money(s.pipelineValue) : money(0)} sub="Active value" tone="blue" />
+          <StatCard label="Won Revenue" value={s ? money(s.wonValue) : money(0)} sub="Closed won" tone="green" />
+          <StatCard label="Conversion" value={`${s?.conversion ?? 0}%`} sub="Lead to won" tone="blue" />
         </div>
       )}
 
-      {/* Charts row */}
-      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-        <BreakdownCard title="Leads by Quality" subtitle="Current qualification outcome" rows={(data?.qualityBreakdown ?? []).map((row) => ({ label: row.quality, count: row.count }))} loading={loading} />
-        <BreakdownCard title="Leads by Temperature" subtitle="Hot, Warm, and Cold classification" rows={(data?.temperatureBreakdown ?? []).map((row) => ({ label: row.temperature, count: row.count }))} loading={loading} />
-        <BreakdownCard title="Leads by Quality Type" subtitle="Detailed Google Sheet-style reason" rows={(data?.qualityTypeBreakdown ?? []).map((row) => ({ label: row.qualityType, count: row.count }))} loading={loading} />
-        <BreakdownCard title="Sales Executive Report" subtitle="Lead ownership distribution" rows={(data?.salesExecutiveBreakdown ?? []).map((row) => ({ label: row.salesExecutive, count: row.count }))} loading={loading} />
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <BreakdownCard title="Quality" subtitle="Lead qualification outcome" rows={(data?.qualityBreakdown ?? []).map((row) => ({ label: row.quality, count: row.count }))} loading={loading} tone="blue" />
+        <BreakdownCard title="Temperature" subtitle="Hot, Warm, and Cold distribution" rows={(data?.temperatureBreakdown ?? []).map((row) => ({ label: row.temperature, count: row.count }))} loading={loading} tone="amber" />
+        <BreakdownCard title="Quality Type" subtitle="Reason and status breakdown" rows={(data?.qualityTypeBreakdown ?? []).map((row) => ({ label: row.qualityType, count: row.count }))} loading={loading} tone="slate" />
+        <BreakdownCard title="Sales Executive" subtitle="Lead ownership distribution" rows={(data?.salesExecutiveBreakdown ?? []).map((row) => ({ label: row.salesExecutive, count: row.count }))} loading={loading} tone="green" />
+      </div>
 
-        {/* Pipeline by Stage */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-800">
-            <h2 className="font-semibold text-white text-sm">Pipeline by Stage</h2>
-            <p className="text-slate-500 text-xs mt-0.5">Lead count and value per stage</p>
-          </div>
-          <div className="p-5 space-y-4">
+      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
+        <Section title="Pipeline by stage" subtitle="Lead count and estimated value per stage.">
+          <div className="space-y-4 p-4">
             {loading ? (
-              Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-8" />)
-            ) : (
-              (data?.stageBreakdown ?? []).map((row) => (
-                <div key={row.stage}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-slate-400 text-sm">{row.stage}</span>
-                    <div className="flex shrink-0 items-center gap-3 text-right sm:gap-4">
-                      <span className="text-slate-500 text-xs">{row.count} lead{row.count !== 1 ? "s" : ""}</span>
-                      <span className="w-20 text-right text-xs font-semibold text-teal-400 sm:w-24">{money(row.value)}</span>
-                    </div>
-                  </div>
-                  <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-teal-500 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.max((row.count / maxStageCount) * 100, row.count > 0 ? 2 : 0)}%` }}
-                    />
-                  </div>
-                </div>
+              Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-12" />)
+            ) : data?.stageBreakdown?.length ? (
+              data.stageBreakdown.map((row) => (
+                <MetricRow
+                  key={row.stage}
+                  label={row.stage}
+                  meta={`${row.count} lead${row.count === 1 ? "" : "s"} - ${money(row.value)}`}
+                  percent={row.count ? (row.count / maxStageCount) * 100 : 0}
+                  tone="blue"
+                />
               ))
-            )}
-            {!loading && !data?.stageBreakdown?.length && (
-              <p className="text-slate-600 text-sm text-center py-6">No data yet</p>
+            ) : (
+              <EmptyState title="No pipeline data" />
             )}
           </div>
-        </div>
+        </Section>
 
-        {/* Leads by Source */}
-        <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-800">
-            <h2 className="font-semibold text-white text-sm">Leads by Source</h2>
-            <p className="text-slate-500 text-xs mt-0.5">Where your leads are coming from</p>
-          </div>
-          <div className="p-5 space-y-4">
+        <Section title="Lead source" subtitle="Where enquiries are coming from.">
+          <div className="space-y-4 p-4">
             {loading ? (
-              Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-8" />)
-            ) : (
-              (data?.sourceBreakdown ?? []).map((row) => (
-                <div key={row.source}>
-                  <div className="flex items-center justify-between mb-1.5">
-                    <span className="text-slate-400 text-sm">{row.source}</span>
-                    <span className="text-slate-500 text-xs">{row.count} lead{row.count !== 1 ? "s" : ""}</span>
-                  </div>
-                  <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-violet-500 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.max((row.count / maxSourceCount) * 100, row.count > 0 ? 2 : 0)}%` }}
-                    />
-                  </div>
-                </div>
+              Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-12" />)
+            ) : data?.sourceBreakdown?.length ? (
+              data.sourceBreakdown.map((row) => (
+                <MetricRow
+                  key={row.source}
+                  label={row.source}
+                  meta={`${row.count} lead${row.count === 1 ? "" : "s"}`}
+                  percent={row.count ? (row.count / maxSourceCount) * 100 : 0}
+                  tone="green"
+                />
               ))
-            )}
-            {!loading && !data?.sourceBreakdown?.length && (
-              <p className="text-slate-600 text-sm text-center py-6">No data yet</p>
+            ) : (
+              <EmptyState title="No source data" />
             )}
           </div>
-        </div>
+        </Section>
 
-        {/* Stage Value breakdown */}
-        <div className="xl:col-span-2 bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-          <div className="px-5 py-4 border-b border-slate-800">
-            <h2 className="font-semibold text-white text-sm">Revenue by Stage</h2>
-            <p className="text-slate-500 text-xs mt-0.5">Budget value distribution across pipeline stages</p>
-          </div>
-          <div className="p-5 space-y-3">
+        <Section title="Revenue by stage" subtitle="Budget value distribution across the sales journey." className="xl:col-span-2">
+          <div className="space-y-4 p-4">
             {loading ? (
-              Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-10" />)
-            ) : (
-              (data?.stageBreakdown ?? []).filter((r) => r.value > 0).map((row) => (
-                <div key={row.stage} className="flex items-center gap-3 sm:gap-4">
-                  <p className="w-24 shrink-0 truncate text-sm text-slate-400 sm:w-32">{row.stage}</p>
-                  <div className="flex-1 h-3 bg-slate-800 rounded-full overflow-hidden">
-                    <div
-                      className="h-full bg-gradient-to-r from-teal-600 to-teal-400 rounded-full transition-all duration-700"
-                      style={{ width: `${Math.max((row.value / maxStageValue) * 100, 1)}%` }}
-                    />
-                  </div>
-                  <span className="w-20 shrink-0 text-right text-sm font-semibold text-teal-400 sm:w-28">{money(row.value)}</span>
-                </div>
+              Array.from({ length: 6 }).map((_, index) => <Skeleton key={index} className="h-12" />)
+            ) : data?.stageBreakdown?.some((row) => row.value > 0) ? (
+              data.stageBreakdown.filter((row) => row.value > 0).map((row) => (
+                <MetricRow
+                  key={row.stage}
+                  label={row.stage}
+                  meta={money(row.value)}
+                  percent={(row.value / maxStageValue) * 100}
+                  tone="amber"
+                />
               ))
-            )}
-            {!loading && !data?.stageBreakdown?.filter((r) => r.value > 0).length && (
-              <p className="text-slate-600 text-sm text-center py-6">No revenue data yet</p>
+            ) : (
+              <EmptyState title="No revenue data" />
             )}
           </div>
-        </div>
+        </Section>
       </div>
     </div>
   );
 }
 
-function BreakdownCard({ title, subtitle, rows, loading }: {
+function BreakdownCard({ title, subtitle, rows, loading, tone }: {
   title: string;
   subtitle: string;
   rows: { label: string; count: number }[];
   loading: boolean;
+  tone: "blue" | "green" | "amber" | "slate";
 }) {
   const max = Math.max(...rows.map((row) => row.count), 1);
   return (
-    <div className="bg-slate-900 border border-slate-800 rounded-xl overflow-hidden">
-      <div className="px-5 py-4 border-b border-slate-800">
-        <h2 className="font-semibold text-white text-sm">{title}</h2>
-        <p className="text-slate-500 text-xs mt-0.5">{subtitle}</p>
-      </div>
-      <div className="p-5 space-y-4">
+    <Section title={title} subtitle={subtitle}>
+      <div className="space-y-4 p-4">
         {loading ? (
-          Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-8" />)
+          Array.from({ length: 5 }).map((_, index) => <Skeleton key={index} className="h-12" />)
         ) : rows.length ? (
           rows.map((row) => (
-            <div key={row.label}>
-              <div className="mb-1.5 flex items-center justify-between gap-3">
-                <span className="min-w-0 truncate text-sm text-slate-400">{row.label}</span>
-                <span className="text-slate-500 text-xs">{row.count} lead{row.count !== 1 ? "s" : ""}</span>
-              </div>
-              <div className="h-2 bg-slate-800 rounded-full overflow-hidden">
-                <div
-                  className="h-full bg-blue-500 rounded-full transition-all duration-500"
-                  style={{ width: `${Math.max((row.count / max) * 100, row.count > 0 ? 2 : 0)}%` }}
-                />
-              </div>
-            </div>
+            <MetricRow
+              key={row.label}
+              label={row.label || "Unknown"}
+              meta={`${row.count} lead${row.count === 1 ? "" : "s"}`}
+              percent={row.count ? (row.count / max) * 100 : 0}
+              tone={tone}
+            />
           ))
         ) : (
-          <p className="text-slate-600 text-sm text-center py-6">No data yet</p>
+          <EmptyState title="No data yet" />
         )}
+      </div>
+    </Section>
+  );
+}
+
+function MetricRow({ label, meta, percent, tone }: { label: string; meta: string; percent: number; tone: "blue" | "green" | "amber" | "slate" }) {
+  const color = {
+    blue: "bg-blue-600",
+    green: "bg-emerald-600",
+    amber: "bg-amber-500",
+    slate: "bg-slate-500",
+  }[tone];
+
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <span className="min-w-0 truncate text-sm font-semibold text-slate-800 dark:text-slate-100">{label}</span>
+        <span className="shrink-0 text-right text-xs font-semibold text-slate-500 dark:text-slate-400">{meta}</span>
+      </div>
+      <div className="h-2.5 overflow-hidden rounded-full bg-slate-100 dark:bg-slate-800">
+        <div className={`h-full rounded-full ${color}`} style={{ width: `${Math.max(percent, percent > 0 ? 3 : 0)}%` }} />
       </div>
     </div>
   );

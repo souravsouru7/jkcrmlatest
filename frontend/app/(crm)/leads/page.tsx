@@ -126,13 +126,13 @@ export default function LeadsPage() {
   return (
     <div className={pageWrap}>
       <PageHeader
-        eyebrow="Google Sheet mirror"
+        eyebrow="Lead inbox"
         title="Leads"
-        subtitle={`${leads.length} total leads. Lead records preserve the exact Google Sheet fields and dropdown values.`}
-        action={<button onClick={() => setShowForm(true)} className={buttonPrimary}>+ Add Lead</button>}
+        subtitle={`${filtered.length} visible - ${leads.length} total leads`}
+        action={<button onClick={() => setShowForm(true)} className={buttonPrimary}>Add Lead</button>}
       />
 
-      <Section title="Search and filters" subtitle="Filter by Quality, Quality Type, Location, Date, and Budget.">
+      <Section title="Filters">
         <div className="grid grid-cols-1 gap-3 p-3 sm:p-4 md:grid-cols-2 xl:grid-cols-6">
           <div className="md:col-span-2 xl:col-span-2">
             <label className={labelCls}>Search</label>
@@ -152,48 +152,58 @@ export default function LeadsPage() {
         </div>
       </Section>
 
-      <Section title="Lead workspace" subtitle="Each card displays only Google Sheet lead fields, with quick communication actions.">
+      <Section title="Lead workspace" subtitle="Name, budget, location, quality, temperature, and next action.">
         {loading ? (
-          <div className="space-y-3 p-5">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-20" />)}</div>
+          <div className="grid grid-cols-1 gap-3 p-4 md:grid-cols-2 xl:grid-cols-3">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-56" />)}</div>
         ) : filtered.length === 0 ? (
           <EmptyState title="No leads found" subtitle="Try another exact sheet filter value." />
         ) : (
-          <div className="divide-y divide-slate-100 dark:divide-slate-800">
+          <div className="grid grid-cols-1 gap-3 p-3 sm:p-4 md:grid-cols-2 xl:grid-cols-3">
             {filtered.map((lead) => {
               const name = sheetValue(lead, "Name");
               const phone = sheetValue(lead, "Phone Number");
-              const email = sheetValue(lead, "Email");
               const location = sheetValue(lead, "Which location is your property in?");
               const budget = sheetValue(lead, "What is your estimated interior budget?");
               const quality = sheetValue(lead, "Quality") || "#N/A";
+              const qualityType = sheetValue(lead, "Quality Type");
+              const project = sheetValue(lead, "What type of home do you have?");
+              const temperature = lead.leadTemperature || lead.priority || "Warm";
+              const nextFollowup = lead.nextFollowupDate || lead.nextFollowUp;
               return (
-                <div key={lead.id} onClick={() => setActiveLead(lead)} className="grid cursor-pointer gap-4 px-5 py-4 hover:bg-slate-50 lg:grid-cols-[minmax(260px,1fr)_minmax(220px,1fr)] xl:grid-cols-[minmax(260px,1.1fr)_minmax(220px,0.9fr)_minmax(260px,0.9fr)_minmax(430px,1.3fr)] lg:items-center dark:hover:bg-slate-800/60">
-                  <div className="flex min-w-0 items-center gap-3">
-                    <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-blue-50 text-sm font-bold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
+                <article key={lead.id} onClick={() => setActiveLead(lead)} className="cursor-pointer rounded-lg border border-slate-200 bg-white p-4 shadow-sm hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950">
+                  <div className="flex min-w-0 items-start justify-between gap-3">
+                    <div className="flex min-w-0 items-center gap-3">
+                      <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-lg bg-blue-50 text-sm font-bold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
                       {(name || "NA").slice(0, 2).toUpperCase()}
+                      </div>
+                      <div className="min-w-0">
+                        <p className="truncate text-sm font-bold text-slate-950 dark:text-white">{name || "No Name"}</p>
+                        <p className="truncate text-xs text-slate-500 dark:text-slate-400">{phone || "No Phone Number"}</p>
+                      </div>
                     </div>
-                    <div className="min-w-0">
-                      <p className="truncate text-sm font-bold text-slate-950 dark:text-white">{name || "No Name"}</p>
-                      <p className="truncate text-xs text-slate-500 dark:text-slate-400">{phone || "No Phone Number"} - {location || "No Location"}</p>
-                    </div>
+                    <Badge value={temperature} />
                   </div>
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-semibold text-slate-800 dark:text-slate-200">{sheetValue(lead, "What type of home do you have?") || "No home type"}</p>
-                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">{budget || "No budget"} - {shortDate(sheetValue(lead, "Date"))}</p>
+
+                  <div className="mt-4 grid grid-cols-2 gap-3">
+                    <LeadFact label="Project" value={project || "Not added"} />
+                    <LeadFact label="Budget" value={budget || "Not added"} />
+                    <LeadFact label="Location" value={location || "Not added"} />
+                    <LeadFact label="Next Follow-up" value={nextFollowup ? shortDate(nextFollowup) : "Not set"} />
                   </div>
-                  <div className="flex min-w-0 flex-wrap items-center gap-2">
+
+                  <div className="mt-4 flex min-w-0 flex-wrap items-center gap-2">
                     <Badge value={quality} />
-                    {sheetValue(lead, "Quality Type") && <Badge value={sheetValue(lead, "Quality Type")} />}
+                    {qualityType && <Badge value={qualityType} />}
+                    <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-600 dark:bg-slate-800 dark:text-slate-300">{lead.owner || "Sales Admin"}</span>
                   </div>
-                  <div className="flex min-w-0 flex-wrap items-center justify-start gap-2 xl:justify-end" onClick={(e) => e.stopPropagation()}>
-                    {phone && <a href={`tel:${phone}`} className="shrink-0 rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Call</a>}
-                    {phone && <a href={`https://wa.me/${normalizePhone(phone)}`} className="shrink-0 rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">WhatsApp</a>}
-                    {email && <a href={`mailto:${email}`} className="shrink-0 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Email</a>}
-                    <button onClick={() => setUpdatingLead(lead)} className="shrink-0 rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">Update Lead</button>
-                    <button onClick={() => setLoggingLead(lead)} className="shrink-0 rounded-xl border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Log</button>
-                    <button onClick={() => handleDelete(lead.id)} className="shrink-0 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-xs font-semibold text-red-700 hover:bg-red-100 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">Delete</button>
+
+                  <div className="mt-4 grid grid-cols-4 gap-2 border-t border-slate-100 pt-4 dark:border-slate-800" onClick={(e) => e.stopPropagation()}>
+                    {phone ? <a href={`tel:${phone}`} className="rounded-lg bg-blue-600 px-2 py-2.5 text-center text-xs font-bold text-white hover:bg-blue-700">Call</a> : <span className="rounded-lg bg-slate-100 px-2 py-2.5 text-center text-xs font-bold text-slate-400 dark:bg-slate-800">Call</span>}
+                    {phone ? <a href={`https://wa.me/${normalizePhone(phone)}`} className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-2.5 text-center text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">WA</a> : <span className="rounded-lg bg-slate-100 px-2 py-2.5 text-center text-xs font-bold text-slate-400 dark:bg-slate-800">WA</span>}
+                    <button onClick={() => setUpdatingLead(lead)} className="rounded-lg bg-slate-900 px-2 py-2.5 text-xs font-bold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">Update</button>
+                    <button onClick={() => setLoggingLead(lead)} className="rounded-lg border border-slate-200 px-2 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Follow</button>
                   </div>
-                </div>
+                </article>
               );
             })}
           </div>
@@ -351,6 +361,15 @@ function sheetPayloadToLead(body: Record<string, FormDataEntryValue>, now: strin
     createdAt: now,
     updatedAt: now,
   };
+}
+
+function LeadFact({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="min-w-0 rounded-lg bg-slate-50 px-3 py-2 dark:bg-slate-900">
+      <p className="text-[10px] font-bold uppercase tracking-wide text-slate-400">{label}</p>
+      <p className="mt-1 truncate text-xs font-bold text-slate-800 dark:text-slate-100">{value}</p>
+    </div>
+  );
 }
 
 function FilterSelect({ label, value, options, onChange }: { label: string; value: string; options: readonly string[]; onChange: (value: string) => void }) {

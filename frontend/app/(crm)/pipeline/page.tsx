@@ -98,7 +98,7 @@ export default function PipelinePage() {
         <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">{Array.from({ length: 8 }).map((_, i) => <Skeleton key={i} className="h-80" />)}</div>
       ) : (
         <div className="overflow-x-auto pb-4">
-          <div className="grid min-w-[1280px] grid-cols-7 gap-4">
+          <div className="grid min-w-[1120px] grid-cols-7 gap-3 lg:gap-4">
             {PIPELINE_STAGES.map((stage) => {
               const stageLeads = leads.filter((lead) => isPositive(lead) && pipelineStage(lead) === stage);
               const value = stageLeads.reduce((sum, lead) => sum + (lead.budget || 0), 0);
@@ -110,9 +110,9 @@ export default function PipelinePage() {
                     if (draggingId) moveLead(draggingId, stage);
                     setDraggingId(null);
                   }}
-                  className="min-h-[520px] rounded-2xl border border-slate-200 bg-slate-100/70 p-3 dark:border-slate-800 dark:bg-slate-900/60"
+                  className="min-h-[520px] rounded-lg border border-slate-200 bg-slate-100/70 p-3 dark:border-slate-800 dark:bg-slate-900/60"
                 >
-                  <div className={`mb-3 rounded-2xl border p-3 ${STAGE_TONE[stage]}`}>
+                  <div className={`mb-3 rounded-lg border p-3 ${STAGE_TONE[stage]}`}>
                     <div className="flex items-center justify-between gap-2">
                       <p className="text-sm font-bold">{stage}</p>
                       <span className="rounded-full bg-white/70 px-2 py-0.5 text-xs font-bold text-slate-700 dark:bg-slate-950/50 dark:text-slate-200">{stageLeads.length}</span>
@@ -121,7 +121,7 @@ export default function PipelinePage() {
                   </div>
 
                   {stageLeads.length === 0 ? (
-                    <div className="rounded-2xl border border-dashed border-slate-300 p-6 text-center text-xs font-semibold text-slate-400 dark:border-slate-700">
+                    <div className="rounded-lg border border-dashed border-slate-300 p-6 text-center text-xs font-semibold text-slate-400 dark:border-slate-700">
                       Drop leads here
                     </div>
                   ) : (
@@ -133,7 +133,7 @@ export default function PipelinePage() {
                           onDragStart={() => setDraggingId(lead.id)}
                           onDragEnd={() => setDraggingId(null)}
                           onClick={() => setActiveLead(lead)}
-                          className="cursor-pointer rounded-2xl border border-slate-200 bg-white p-4 shadow-sm hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950"
+                          className="cursor-pointer rounded-lg border border-slate-200 bg-white p-4 shadow-sm hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950"
                         >
                           <div className="flex items-start justify-between gap-2">
                             <div className="min-w-0">
@@ -147,10 +147,10 @@ export default function PipelinePage() {
                             <span className="truncate text-xs text-slate-500 dark:text-slate-400">{lead.location}</span>
                             <span className="text-xs font-semibold text-blue-600 dark:text-blue-400">{shortDate(lead.nextFollowUp)}</span>
                           </div>
-                          <select value={pipelineStage(lead)} onClick={(e) => e.stopPropagation()} onChange={(e) => moveLead(lead.id, e.target.value as Stage)} className="mt-3 w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
+                          <select value={pipelineStage(lead)} onClick={(e) => e.stopPropagation()} onChange={(e) => moveLead(lead.id, e.target.value as Stage)} className="mt-3 w-full rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">
                             {STAGES.map((item) => <option key={item}>{item}</option>)}
                           </select>
-                          <button onClick={(e) => { e.stopPropagation(); setUpdatingLead(lead); }} className="mt-2 w-full rounded-xl bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">Update Lead</button>
+                          <button onClick={(e) => { e.stopPropagation(); setUpdatingLead(lead); }} className="mt-2 w-full rounded-lg bg-slate-900 px-3 py-2 text-xs font-semibold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">Update Lead</button>
                         </article>
                       ))}
                     </div>

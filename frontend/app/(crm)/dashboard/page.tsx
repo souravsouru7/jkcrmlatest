@@ -5,7 +5,7 @@ import Link from "next/link";
 import { api } from "@/lib/api";
 import { money, shortDate } from "@/lib/utils";
 import Badge from "@/components/Badge";
-import { EmptyState, PageHeader, Section, Skeleton, StatCard, buttonPrimary, buttonSecondary, pageWrap } from "@/components/CrmDesign";
+import { EmptyState, Section, Skeleton, StatCard, buttonPrimary, buttonSecondary, pageWrap } from "@/components/CrmDesign";
 import type { DashboardSummary, FollowUp, Lead } from "@/lib/types";
 
 type DashData = {
@@ -20,7 +20,7 @@ type DashData = {
 function TaskRow({ followUp, lead }: { followUp: FollowUp; lead?: Lead }) {
   const overdue = followUp.status === "Overdue";
   return (
-    <div className="flex items-center gap-3 px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/60">
+    <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
       <div className={`h-2.5 w-2.5 rounded-full ${overdue ? "bg-red-500" : "bg-blue-600"}`} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">{lead?.name || `Lead #${followUp.leadId}`}</p>
@@ -55,38 +55,43 @@ export default function DashboardPage() {
 
   return (
     <div className={pageWrap}>
-      <PageHeader
-        eyebrow="Executive dashboard"
-        title="Sales command center"
-        subtitle={`${today} - prioritize the next best action across leads, visits, quotes, and revenue.`}
-        action={
-          <>
-            <Link href="/follow-ups" className={buttonSecondary}>Review Tasks</Link>
-            <Link href="/leads" className={buttonPrimary}>+ Add Lead</Link>
-          </>
-        }
-      />
+      <section className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm sm:p-5 lg:p-6 dark:border-slate-800 dark:bg-slate-900">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <p className="text-xs font-bold uppercase tracking-wide text-blue-600 dark:text-blue-400">{today}</p>
+            <h1 className="mt-1 text-2xl font-bold tracking-tight text-slate-950 sm:text-3xl dark:text-white">Sales Command Center</h1>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Start with the next call, follow-up, visit, or quote.</p>
+          </div>
+          <div className="grid grid-cols-2 gap-2 sm:flex">
+            <Link href="/follow-ups" className={buttonSecondary}>Tasks</Link>
+            <Link href="/leads" className={buttonPrimary}>Add Lead</Link>
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-3 gap-2">
+          <TodayChip label="Open" value={(s?.pending ?? 0) + todayVisits} />
+          <TodayChip label="Overdue" value={overdue} tone={overdue ? "red" : "green"} />
+          <TodayChip label="Visits" value={todayVisits} />
+        </div>
+      </section>
 
       {loading ? (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-7">
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
           {Array.from({ length: 7 }).map((_, i) => <Skeleton key={i} className="h-36" />)}
         </div>
       ) : (
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-7">
-          <StatCard href="/follow-ups" label="Today's Tasks" value={(s?.pending ?? 0) + todayVisits} sub="Calls, visits, quote work" tone="blue" />
-          <StatCard href="/follow-ups" label="Overdue Follow-ups" value={overdue} sub={overdue ? "Needs immediate action" : "All clear"} tone={overdue ? "red" : "green"} />
-          <StatCard href="/leads" label="Hot Leads" value={hotLeads.length} sub="High-intent prospects" tone="amber" />
-          <StatCard href="/site-visits" label="Upcoming Site Visits" value={todayVisits} sub="Scheduled today" tone="slate" />
-          <StatCard href="/pipeline" label="Pipeline Value" value={s ? money(s.pipelineValue) : money(0)} sub="Active opportunity value" tone="blue" />
-          <StatCard href="/reports" label="Conversion Rate" value={`${s?.conversion ?? 0}%`} sub="Lead to won" tone="green" />
-          <StatCard href="/reports" label="Revenue Won" value={s ? money(s.wonValue) : money(0)} sub="Closed business" tone="green" />
+        <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 xl:grid-cols-6">
+          <StatCard href="/leads" label="New Leads" value={s?.totalLeads ?? 0} sub="All enquiries" tone="blue" />
+          <StatCard href="/pipeline" label="Positive Leads" value={s?.positiveLeads ?? 0} sub="Pipeline ready" tone="green" />
+          <StatCard href="/follow-ups" label="Pending Follow-ups" value={s?.pending ?? 0} sub="Calls and reminders" tone="amber" />
+          <StatCard href="/site-visits" label="Today's Site Visits" value={todayVisits} sub="Field schedule" tone="slate" />
+          <StatCard href="/quotations" label="Quotes Pending" value={data?.stageBreakdown?.find((row) => row.stage === "Quotation")?.count ?? 0} sub="Quote follow-up" tone="blue" />
+          <StatCard href="/reports" label="Won This Month" value={s ? money(s.wonValue) : money(0)} sub="Closed revenue" tone="green" />
         </div>
       )}
 
       {!loading && (
-        <div className="grid grid-cols-2 gap-4 md:grid-cols-4 xl:grid-cols-8">
-          <StatCard href="/leads" label="Total Leads" value={s?.totalLeads ?? 0} sub="All enquiries" tone="slate" />
-          <StatCard href="/pipeline" label="Positive Leads" value={s?.positiveLeads ?? 0} sub="Pipeline eligible" tone="green" />
+        <div className="grid grid-cols-2 gap-3 md:grid-cols-4 xl:grid-cols-8">
           <StatCard href="/negative-leads" label="Negative Leads" value={s?.negativeLeads ?? 0} sub="Not progressing" tone="red" />
           <StatCard href="/leads" label="Hot Leads" value={s?.hotLeads ?? 0} sub="Temperature" tone="amber" />
           <StatCard href="/leads" label="Warm Leads" value={s?.warmLeads ?? 0} sub="Temperature" tone="blue" />
@@ -98,15 +103,15 @@ export default function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
         <Section
-          title="Priority work queue"
-          subtitle="Overdue and upcoming follow-ups, ordered for the next conversation."
+          title="Work queue"
+          subtitle="Calls and follow-ups due next."
           action={<Link href="/follow-ups" className="text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400">Open follow-ups</Link>}
           className="xl:col-span-5"
         >
           {loading ? (
-            <div className="space-y-3 p-5">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
+            <div className="space-y-3 p-4">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
           ) : data?.upcomingFollowUps?.length ? (
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            <div className="space-y-3 p-4">
               {data.upcomingFollowUps.slice(0, 7).map((f) => (
                 <TaskRow key={f.id} followUp={f} lead={allLeads.find((lead) => lead.id === f.leadId)} />
               ))}
@@ -118,17 +123,17 @@ export default function DashboardPage() {
 
         <Section
           title="Hot leads"
-          subtitle="High conversion opportunities with quick contact actions."
+          subtitle="Quick contact for high-intent leads."
           action={<Link href="/leads" className="text-sm font-semibold text-blue-600 hover:text-blue-700 dark:text-blue-400">View leads</Link>}
           className="xl:col-span-4"
         >
           {loading ? (
             <div className="space-y-3 p-5">{Array.from({ length: 5 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
           ) : hotLeads.length ? (
-            <div className="divide-y divide-slate-100 dark:divide-slate-800">
+            <div className="space-y-3 p-4">
               {hotLeads.slice(0, 6).map((lead) => (
-                <div key={lead.id} className="flex items-center gap-3 px-5 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/60">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-blue-50 text-xs font-bold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
+                <div key={lead.id} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-xs font-bold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
                     {lead.name.slice(0, 2).toUpperCase()}
                   </div>
                   <div className="min-w-0 flex-1">
@@ -136,8 +141,8 @@ export default function DashboardPage() {
                     <p className="truncate text-xs text-slate-500 dark:text-slate-400">{lead.project} - {lead.location}</p>
                   </div>
                   <div className="flex gap-2">
-                    <a href={`tel:${lead.phone}`} className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Call</a>
-                    <a href={`https://wa.me/${lead.phone.replace(/\D/g, "")}`} className="rounded-xl border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">WA</a>
+                    <a href={`tel:${lead.phone}`} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Call</a>
+                    <a href={`https://wa.me/${lead.phone.replace(/\D/g, "")}`} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">WA</a>
                   </div>
                 </div>
               ))}
@@ -168,6 +173,21 @@ export default function DashboardPage() {
           )}
         </Section>
       </div>
+    </div>
+  );
+}
+
+function TodayChip({ label, value, tone = "blue" }: { label: string; value: number; tone?: "blue" | "red" | "green" }) {
+  const toneCls = {
+    blue: "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300",
+    red: "bg-red-50 text-red-700 dark:bg-red-500/15 dark:text-red-300",
+    green: "bg-emerald-50 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-300",
+  }[tone];
+
+  return (
+    <div className={`rounded-lg px-3 py-3 ${toneCls}`}>
+      <p className="text-xl font-black leading-none">{value}</p>
+      <p className="mt-1 truncate text-[11px] font-bold uppercase tracking-wide">{label}</p>
     </div>
   );
 }

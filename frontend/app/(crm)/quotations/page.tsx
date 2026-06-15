@@ -64,13 +64,13 @@ export default function QuotationsPage() {
   return (
     <div className={pageWrap}>
       <PageHeader
-        eyebrow="Quotation finance desk"
+        eyebrow="Finance desk"
         title="Quotations"
         subtitle={`${quotes.length} quotations - ${money(acceptedValue)} accepted - ${money(sentValue)} waiting for client decision`}
-        action={<button onClick={() => setShowForm(true)} className={buttonPrimary}>+ Create Quote</button>}
+        action={<button onClick={() => setShowForm(true)} className={buttonPrimary}>Create Quote</button>}
       />
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 xl:grid-cols-4">
         <AmountCard label="Draft" value={draftValue} count={quotes.filter((q) => q.status === "Draft").length} tone="slate" />
         <AmountCard label="Sent" value={sentValue} count={quotes.filter((q) => q.status === "Sent").length} tone="blue" />
         <AmountCard label="Accepted" value={acceptedValue} count={quotes.filter((q) => q.status === "Accepted").length} tone="green" />
@@ -79,11 +79,11 @@ export default function QuotationsPage() {
 
       <Section
         title="Quote register"
-        subtitle="Finance-app style view with status actioning and professional preview."
+        subtitle="Preview, send, accept, reject, and follow up."
         action={
           <div className="flex gap-2 overflow-x-auto">
             {FILTERS.map((item) => (
-              <button key={item} onClick={() => setFilter(item)} className={`shrink-0 rounded-xl border px-3 py-2 text-xs font-semibold capitalize ${filter === item ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"}`}>
+              <button key={item} onClick={() => setFilter(item)} className={`shrink-0 rounded-lg border px-3 py-2 text-xs font-semibold capitalize ${filter === item ? "border-blue-600 bg-blue-600 text-white" : "border-slate-200 bg-white text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300"}`}>
                 {item}
               </button>
             ))}
@@ -95,11 +95,11 @@ export default function QuotationsPage() {
         ) : visible.length === 0 ? (
           <EmptyState title="No quotations found" subtitle="Create a quote from a qualified lead." />
         ) : (
-          <div className="grid grid-cols-1 gap-4 p-4 lg:grid-cols-2 xl:grid-cols-3">
+          <div className="grid grid-cols-1 gap-3 p-4 lg:grid-cols-2 xl:grid-cols-3">
             {visible.map((quote) => {
               const client = lead(quote.leadId);
               return (
-                <article key={quote.id} className={`rounded-2xl border p-5 shadow-sm ${STATUS_TONE[quote.status] ?? STATUS_TONE.Draft}`}>
+                <article key={quote.id} className={`rounded-lg border p-4 shadow-sm ${STATUS_TONE[quote.status] ?? STATUS_TONE.Draft}`}>
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
                       <p className="truncate text-sm font-bold text-slate-950 dark:text-white">{client?.name || `Lead #${quote.leadId}`}</p>
@@ -108,7 +108,7 @@ export default function QuotationsPage() {
                     <Badge value={quote.status} />
                   </div>
 
-                  <div className="mt-5 rounded-2xl bg-white/80 p-4 dark:bg-slate-950/70">
+                  <div className="mt-5 rounded-lg bg-white/80 p-4 dark:bg-slate-950/70">
                     <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Quote Amount</p>
                     <p className="mt-1 text-3xl font-bold tracking-tight text-slate-950 dark:text-white">{money(quote.amount)}</p>
                     <div className="mt-3 grid grid-cols-2 gap-3 text-xs">
@@ -123,14 +123,14 @@ export default function QuotationsPage() {
                   </div>
 
                   <div className="mt-4 flex flex-wrap gap-2">
-                    {quote.status === "Draft" && <button onClick={() => handleStatus(quote.id, "Sent")} className="rounded-xl bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Send</button>}
+                    {quote.status === "Draft" && <button onClick={() => handleStatus(quote.id, "Sent")} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Send</button>}
                     {quote.status === "Sent" && (
                       <>
-                        <button onClick={() => handleStatus(quote.id, "Accepted")} className="rounded-xl bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">Accept</button>
-                        <button onClick={() => handleStatus(quote.id, "Rejected")} className="rounded-xl bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700">Reject</button>
+                        <button onClick={() => handleStatus(quote.id, "Accepted")} className="rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">Accept</button>
+                        <button onClick={() => handleStatus(quote.id, "Rejected")} className="rounded-lg bg-red-600 px-3 py-2 text-xs font-semibold text-white hover:bg-red-700">Reject</button>
                       </>
                     )}
-                    <button onClick={() => setPreview(quote)} className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">PDF Preview</button>
+                    <button onClick={() => setPreview(quote)} className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-200">PDF Preview</button>
                   </div>
                 </article>
               );
@@ -171,9 +171,9 @@ function AmountCard({ label, value, count, tone }: { label: string; value: numbe
     red: "bg-red-600 text-white",
   };
   return (
-    <div className={`rounded-2xl p-5 shadow-sm ${tones[tone]}`}>
+    <div className={`rounded-lg p-4 shadow-sm sm:p-5 ${tones[tone]}`}>
       <p className="text-sm font-semibold opacity-80">{label}</p>
-      <p className="mt-3 text-3xl font-bold tracking-tight">{money(value)}</p>
+      <p className="mt-3 break-words text-xl font-bold tracking-tight sm:text-3xl">{money(value)}</p>
       <p className="mt-2 text-xs font-semibold opacity-75">{count} quote{count === 1 ? "" : "s"}</p>
     </div>
   );
@@ -187,7 +187,7 @@ function Modal({ title, children, onClose }: { title: string; children: React.Re
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+      <div className="relative max-h-[90vh] w-full max-w-lg overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
         <div className="sticky top-0 z-10 flex items-center justify-between gap-3 border-b border-slate-100 bg-white px-4 py-4 sm:px-6 dark:border-slate-800 dark:bg-slate-900">
           <h2 className="min-w-0 break-words text-base font-bold text-slate-950 sm:text-lg dark:text-white">{title}</h2>
           <button onClick={onClose} className="rounded-xl px-3 py-2 text-sm font-semibold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">Close</button>
@@ -203,7 +203,7 @@ function QuotePreview({ quote, lead, onClose }: { quote: Quotation; lead?: Lead;
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-slate-950/60 backdrop-blur-sm" onClick={onClose} />
-      <div className="relative max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
+      <div className="relative max-h-[92vh] w-full max-w-3xl overflow-y-auto rounded-lg border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-900">
         <div className="flex items-center justify-between gap-3 border-b border-slate-100 px-4 py-4 sm:px-6 dark:border-slate-800">
           <div>
             <h2 className="break-words text-base font-bold text-slate-950 sm:text-lg dark:text-white">Professional Quote Preview</h2>
@@ -213,10 +213,10 @@ function QuotePreview({ quote, lead, onClose }: { quote: Quotation; lead?: Lead;
         </div>
 
         <div className="p-4 sm:p-6">
-          <div className="rounded-2xl border border-slate-200 bg-slate-50 p-4 sm:p-6 dark:border-slate-800 dark:bg-slate-950">
+          <div className="rounded-lg border border-slate-200 bg-slate-50 p-4 sm:p-6 dark:border-slate-800 dark:bg-slate-950">
             <div className="flex flex-col gap-6 sm:flex-row sm:items-start sm:justify-between">
               <div>
-                <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-sm font-black text-white">JK</div>
+                <div className="flex h-12 w-12 items-center justify-center rounded-lg bg-blue-600 text-sm font-black text-white">JK</div>
                 <p className="mt-4 text-lg font-bold text-slate-950 dark:text-white">JK Interiors</p>
                 <p className="text-sm text-slate-500 dark:text-slate-400">Interior design, execution, and turnkey services</p>
               </div>
@@ -227,20 +227,20 @@ function QuotePreview({ quote, lead, onClose }: { quote: Quotation; lead?: Lead;
             </div>
 
             <div className="mt-8 grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <div className="rounded-2xl bg-white p-4 dark:bg-slate-900">
+              <div className="rounded-lg bg-white p-4 dark:bg-slate-900">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Prepared For</p>
                 <p className="mt-2 text-sm font-bold text-slate-950 dark:text-white">{lead?.name || `Lead #${quote.leadId}`}</p>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{lead?.project || "Interior project"}</p>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">{lead?.location || ""}</p>
               </div>
-              <div className="rounded-2xl bg-white p-4 dark:bg-slate-900">
+              <div className="rounded-lg bg-white p-4 dark:bg-slate-900">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Commercial Summary</p>
                 <p className="mt-2 break-words text-2xl font-bold text-slate-950 sm:text-3xl dark:text-white">{money(net)}</p>
                 <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Inclusive of configured discount and tax</p>
               </div>
             </div>
 
-            <div className="mt-6 overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
+            <div className="mt-6 overflow-hidden rounded-lg border border-slate-200 bg-white dark:border-slate-800 dark:bg-slate-900">
               {[
                 ["Base quote", money(quote.amount)],
                 ["Discount", quote.discount ? `-${money(quote.discount)}` : money(0)],
@@ -255,7 +255,7 @@ function QuotePreview({ quote, lead, onClose }: { quote: Quotation; lead?: Lead;
             </div>
 
             {quote.terms && (
-              <div className="mt-6 rounded-2xl bg-white p-4 dark:bg-slate-900">
+              <div className="mt-6 rounded-lg bg-white p-4 dark:bg-slate-900">
                 <p className="text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">Payment Terms</p>
                 <p className="mt-2 text-sm leading-6 text-slate-600 dark:text-slate-300">{quote.terms}</p>
               </div>

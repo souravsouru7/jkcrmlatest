@@ -14,6 +14,14 @@ const PRIMARY_NAV = [
   { href: "/pipeline", label: "Pipeline", hint: "Deal movement" },
 ];
 
+const MOBILE_NAV = [
+  { href: "/dashboard", label: "Home" },
+  { href: "/leads", label: "Leads" },
+  { href: "/follow-ups", label: "Tasks" },
+  { href: "/pipeline", label: "Pipeline" },
+  { href: "/more", label: "More" },
+];
+
 const SECONDARY_NAV = [
   { href: "/site-visits", label: "Site Visits" },
   { href: "/quotations", label: "Quotations" },
@@ -37,7 +45,7 @@ function NavItem({ href, label, hint, active, onClick }: { href: string; label: 
     <Link
       href={href}
       onClick={onClick}
-      className={`group flex items-center justify-between gap-3 rounded-2xl px-3 py-2.5 text-sm font-semibold ${
+      className={`group flex items-center justify-between gap-3 rounded-lg px-3 py-2.5 text-sm font-semibold ${
         active
           ? "bg-blue-600 text-white shadow-sm shadow-blue-600/25"
           : "text-slate-600 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-800 dark:hover:text-white"
@@ -47,7 +55,7 @@ function NavItem({ href, label, hint, active, onClick }: { href: string; label: 
         <span className="block truncate">{label}</span>
         {hint && <span className={`block truncate text-[11px] font-medium ${active ? "text-blue-100" : "text-slate-400 dark:text-slate-500"}`}>{hint}</span>}
       </span>
-      <span aria-hidden="true" className={active ? "text-blue-100" : "text-slate-300 group-hover:text-slate-500"}>›</span>
+      <span aria-hidden="true" className={active ? "text-blue-100" : "text-slate-300 group-hover:text-slate-500"}>&gt;</span>
     </Link>
   );
 }
@@ -62,7 +70,7 @@ export default function CrmLayout({ children }: { children: React.ReactNode }) {
   if (!ready) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-slate-50 dark:bg-slate-950">
-        <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-2xl bg-blue-600 text-sm font-black text-white shadow-lg shadow-blue-600/20">
+        <div className="mb-5 flex h-12 w-12 items-center justify-center rounded-lg bg-blue-600 text-sm font-black text-white shadow-lg shadow-blue-600/20">
           JK
         </div>
         <div className="h-6 w-6 animate-spin rounded-full border-2 border-blue-600 border-t-transparent" />
@@ -75,7 +83,7 @@ export default function CrmLayout({ children }: { children: React.ReactNode }) {
   const sidebar = (
     <aside className="flex h-full w-[min(18rem,86vw)] flex-col border-r border-slate-200 bg-white/95 backdrop-blur-xl dark:border-slate-800 dark:bg-slate-950/95">
       <div className="flex h-20 items-center gap-3 border-b border-slate-100 px-5 dark:border-slate-800">
-        <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-blue-600 text-sm font-black text-white shadow-lg shadow-blue-600/20">
+        <div className="flex h-11 w-11 items-center justify-center rounded-lg bg-blue-600 text-sm font-black text-white shadow-lg shadow-blue-600/20">
           JK
         </div>
         <div className="min-w-0">
@@ -103,11 +111,11 @@ export default function CrmLayout({ children }: { children: React.ReactNode }) {
           </nav>
         </div>
 
-        <div className="rounded-2xl border border-blue-100 bg-blue-50 p-4 dark:border-blue-500/20 dark:bg-blue-500/10">
+        <div className="rounded-lg border border-blue-100 bg-blue-50 p-4 dark:border-blue-500/20 dark:bg-blue-500/10">
           <p className="text-sm font-bold text-slate-950 dark:text-white">Quick actions</p>
           <div className="mt-3 grid gap-2">
             {ACTIONS.map((action) => (
-              <Link key={action.label} href={action.href} onClick={() => setSidebarOpen(false)} className="rounded-xl bg-white px-3 py-2 text-xs font-semibold text-blue-700 shadow-sm hover:bg-blue-600 hover:text-white dark:bg-slate-900 dark:text-blue-300 dark:hover:bg-blue-600 dark:hover:text-white">
+              <Link key={action.label} href={action.href} onClick={() => setSidebarOpen(false)} className="rounded-lg bg-white px-3 py-2 text-xs font-semibold text-blue-700 shadow-sm hover:bg-blue-600 hover:text-white dark:bg-slate-900 dark:text-blue-300 dark:hover:bg-blue-600 dark:hover:text-white">
                 {action.label}
               </Link>
             ))}
@@ -116,8 +124,8 @@ export default function CrmLayout({ children }: { children: React.ReactNode }) {
       </div>
 
       <div className="border-t border-slate-100 p-4 dark:border-slate-800">
-        <div className="flex items-center gap-3 rounded-2xl bg-slate-50 p-3 dark:bg-slate-900">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-xs font-bold text-white dark:bg-blue-600">
+        <div className="flex items-center gap-3 rounded-lg bg-slate-50 p-3 dark:bg-slate-900">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white dark:bg-blue-600">
             {user?.name?.slice(0, 2).toUpperCase() || "SA"}
           </div>
           <div className="min-w-0 flex-1">
@@ -143,7 +151,7 @@ export default function CrmLayout({ children }: { children: React.ReactNode }) {
       <div className="flex min-w-0 flex-1 flex-col">
         <header className="flex min-h-16 items-center justify-between border-b border-slate-200 bg-white/80 px-3 py-3 backdrop-blur-xl sm:px-6 lg:min-h-20 lg:px-8 dark:border-slate-800 dark:bg-slate-950/70">
           <div className="flex items-center gap-3">
-            <button className="rounded-xl border border-slate-200 bg-white p-2 text-slate-600 lg:hidden dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300" onClick={() => setSidebarOpen(true)} aria-label="Open navigation">
+            <button className="rounded-lg border border-slate-200 bg-white p-2 text-slate-600 lg:hidden dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300" onClick={() => setSidebarOpen(true)} aria-label="Open navigation">
               <span className="block h-0.5 w-5 bg-current" />
               <span className="mt-1.5 block h-0.5 w-5 bg-current" />
               <span className="mt-1.5 block h-0.5 w-5 bg-current" />
@@ -160,20 +168,20 @@ export default function CrmLayout({ children }: { children: React.ReactNode }) {
                 Offline
               </span>
             )}
-            <button onClick={() => setActionsOpen((v) => !v)} className="hidden rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-600/20 hover:bg-blue-700 sm:inline-flex">
+            <button onClick={() => setActionsOpen((v) => !v)} className="hidden rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm shadow-blue-600/20 hover:bg-blue-700 sm:inline-flex">
               + New
             </button>
             <ReminderBell />
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-900 text-xs font-bold text-white dark:bg-blue-600">
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-900 text-xs font-bold text-white dark:bg-blue-600">
               {user?.name?.slice(0, 2).toUpperCase() || "SA"}
             </div>
           </div>
         </header>
 
         {actionsOpen && (
-          <div className="fixed right-3 top-16 z-40 w-[calc(100vw-1.5rem)] max-w-56 rounded-2xl border border-slate-200 bg-white p-2 shadow-xl sm:right-6 sm:top-20 dark:border-slate-800 dark:bg-slate-900">
+          <div className="fixed right-3 top-16 z-40 w-[calc(100vw-1.5rem)] max-w-56 rounded-lg border border-slate-200 bg-white p-2 shadow-xl sm:right-6 sm:top-20 dark:border-slate-800 dark:bg-slate-900">
             {ACTIONS.map((action) => (
-              <Link key={action.label} href={action.href} onClick={() => setActionsOpen(false)} className="block rounded-xl px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-blue-500/10 dark:hover:text-blue-300">
+              <Link key={action.label} href={action.href} onClick={() => setActionsOpen(false)} className="block rounded-lg px-3 py-2.5 text-sm font-semibold text-slate-700 hover:bg-blue-50 hover:text-blue-700 dark:text-slate-200 dark:hover:bg-blue-500/10 dark:hover:text-blue-300">
                 {action.label}
               </Link>
             ))}
@@ -183,9 +191,31 @@ export default function CrmLayout({ children }: { children: React.ReactNode }) {
         <main className="flex-1 overflow-y-auto">{children}</main>
       </div>
 
+      <nav className="fixed inset-x-0 bottom-0 z-40 border-t border-slate-200 bg-white/95 px-2 pb-[calc(env(safe-area-inset-bottom,0px)+0.35rem)] pt-2 shadow-2xl shadow-slate-950/10 backdrop-blur-xl lg:hidden dark:border-slate-800 dark:bg-slate-950/95">
+        <div className="mx-auto grid max-w-md grid-cols-5 gap-1">
+          {MOBILE_NAV.map((item) => {
+            const active = isActive(item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                className={`flex min-h-14 flex-col items-center justify-center gap-1 rounded-lg text-[11px] font-bold ${
+                  active
+                    ? "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300"
+                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-950 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-white"
+                }`}
+              >
+                <span className={`h-1.5 w-6 rounded-full ${active ? "bg-blue-600 dark:bg-blue-400" : "bg-transparent"}`} />
+                <span>{item.label}</span>
+              </Link>
+            );
+          })}
+        </div>
+      </nav>
+
       <button
         onClick={() => setActionsOpen((v) => !v)}
-        className="fixed bottom-5 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-2xl bg-blue-600 text-2xl font-light text-white shadow-xl shadow-blue-600/30 hover:bg-blue-700 sm:hidden"
+        className="fixed bottom-24 right-5 z-40 flex h-14 w-14 items-center justify-center rounded-lg bg-blue-600 text-2xl font-light text-white shadow-xl shadow-blue-600/30 hover:bg-blue-700 sm:hidden"
         aria-label="Open quick actions"
       >
         +
