@@ -6,6 +6,7 @@ import { FOLLOW_UP_TYPES, shortDate } from "@/lib/utils";
 import Badge from "@/components/Badge";
 import { notifyFollowUpDue } from "@/lib/notifications";
 import { EmptyState, PageHeader, Section, Skeleton, buttonPrimary, buttonSecondary, inputCls, labelCls, pageWrap, selectCls } from "@/components/CrmDesign";
+import LeadDetailDrawer from "@/components/LeadDetailDrawer";
 import type { FollowUp, Lead } from "@/lib/types";
 
 export default function FollowUpsPage() {
@@ -13,6 +14,7 @@ export default function FollowUpsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
   const [showForm, setShowForm] = useState(false);
   const [reschedule, setReschedule] = useState<FollowUp | null>(null);
+  const [activeLead, setActiveLead] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -29,6 +31,18 @@ export default function FollowUpsPage() {
   async function handleComplete(id: number) {
     await api.completeFollowUp(id).catch(() => {});
     setFollowUps((prev) => prev.map((f) => f.id === id ? { ...f, status: "Completed" } : f));
+  }
+
+  async function handleDeleteLead(id: number) {
+    if (!window.confirm("Are you sure you want to delete this lead? This action cannot be undone.")) return;
+    try {
+      await api.deleteLead(id);
+      setLeads((prev) => prev.filter((item) => item.id !== id));
+      setFollowUps((prev) => prev.filter((item) => item.leadId !== id));
+      setActiveLead(null);
+    } catch (err: any) {
+      alert(err.message || "Failed to delete lead");
+    }
   }
 
   async function handleCreate(e: FormEvent<HTMLFormElement>) {
@@ -95,10 +109,10 @@ export default function FollowUpsPage() {
       />
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <FollowSection title="Overdue" tone="red" items={grouped.overdue} loading={loading} lead={lead} onComplete={handleComplete} onReschedule={setReschedule} />
-        <FollowSection title="Today" tone="blue" items={grouped.today} loading={loading} lead={lead} onComplete={handleComplete} onReschedule={setReschedule} />
-        <FollowSection title="Tomorrow" tone="amber" items={grouped.tomorrow} loading={loading} lead={lead} onComplete={handleComplete} onReschedule={setReschedule} />
-        <FollowSection title="Upcoming" tone="slate" items={grouped.upcoming} loading={loading} lead={lead} onComplete={handleComplete} onReschedule={setReschedule} />
+        <FollowSection title="Overdue" tone="red" items={grouped.overdue} loading={loading} lead={lead} onOpenLead={setActiveLead} onComplete={handleComplete} onReschedule={setReschedule} />
+        <FollowSection title="Today" tone="blue" items={grouped.today} loading={loading} lead={lead} onOpenLead={setActiveLead} onComplete={handleComplete} onReschedule={setReschedule} />
+        <FollowSection title="Tomorrow" tone="amber" items={grouped.tomorrow} loading={loading} lead={lead} onOpenLead={setActiveLead} onComplete={handleComplete} onReschedule={setReschedule} />
+        <FollowSection title="Upcoming" tone="slate" items={grouped.upcoming} loading={loading} lead={lead} onOpenLead={setActiveLead} onComplete={handleComplete} onReschedule={setReschedule} />
       </div>
 
       {showForm && (
@@ -128,16 +142,29 @@ export default function FollowUpsPage() {
           </form>
         </Modal>
       )}
+
+      {activeLead && (
+        <LeadDetailDrawer
+          lead={activeLead}
+          onClose={() => setActiveLead(null)}
+          onLog={() => {
+            setShowForm(true);
+            setActiveLead(null);
+          }}
+          onDelete={() => handleDeleteLead(activeLead.id)}
+        />
+      )}
     </div>
   );
 }
 
-function FollowSection({ title, tone, items, loading, lead, onComplete, onReschedule }: {
+function FollowSection({ title, tone, items, loading, lead, onOpenLead, onComplete, onReschedule }: {
   title: string;
   tone: "red" | "blue" | "amber" | "slate";
   items: FollowUp[];
   loading: boolean;
   lead: (id: number) => Lead | undefined;
+  onOpenLead: (lead: Lead) => void;
   onComplete: (id: number) => void;
   onReschedule: (item: FollowUp) => void;
 }) {
@@ -159,7 +186,11 @@ function FollowSection({ title, tone, items, loading, lead, onComplete, onResche
           {items.map((f) => {
             const client = lead(f.leadId);
             return (
-              <article key={f.id} className="rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+              <article
+                key={f.id}
+                onClick={() => client && onOpenLead(client)}
+                className={`rounded-lg border border-slate-200 bg-white p-4 shadow-sm dark:border-slate-800 dark:bg-slate-950 ${client ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md" : ""}`}
+              >
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0">
                     <p className="truncate text-sm font-bold text-slate-950 dark:text-white">{client?.name || `Lead #${f.leadId}`}</p>
@@ -170,7 +201,8 @@ function FollowSection({ title, tone, items, loading, lead, onComplete, onResche
                 {f.notes && <p className="mt-3 rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-900 dark:text-slate-300">{f.notes}</p>}
                 <div className="mt-4 flex flex-wrap items-center justify-between gap-3">
                   <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Due {shortDate(f.due)}</span>
-                  <div className="flex w-full flex-wrap gap-2 sm:w-auto">
+                  <div className="flex w-full flex-wrap gap-2 sm:w-auto" onClick={(event) => event.stopPropagation()}>
+                    {client && <button onClick={() => onOpenLead(client)} className="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Details</button>}
                     {client && <a href={`tel:${client.phone}`} className="shrink-0 rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Call</a>}
                     <button onClick={() => onComplete(f.id)} className="shrink-0 rounded-lg bg-emerald-600 px-3 py-2 text-xs font-semibold text-white hover:bg-emerald-700">Complete</button>
                     <button onClick={() => onReschedule(f)} className="shrink-0 rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Reschedule</button>
