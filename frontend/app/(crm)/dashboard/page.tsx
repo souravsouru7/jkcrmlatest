@@ -6,6 +6,7 @@ import { api } from "@/lib/api";
 import { money, shortDate } from "@/lib/utils";
 import Badge from "@/components/Badge";
 import { EmptyState, Section, Skeleton, StatCard, buttonPrimary, buttonSecondary, pageWrap } from "@/components/CrmDesign";
+import LeadDetailDrawer from "@/components/LeadDetailDrawer";
 import type { DashboardSummary, FollowUp, Lead } from "@/lib/types";
 
 type DashData = {
@@ -17,10 +18,13 @@ type DashData = {
   sourceBreakdown: { source: string; count: number }[];
 };
 
-function TaskRow({ followUp, lead }: { followUp: FollowUp; lead?: Lead }) {
+function TaskRow({ followUp, lead, onOpenLead }: { followUp: FollowUp; lead?: Lead; onOpenLead: (lead: Lead) => void }) {
   const overdue = followUp.status === "Overdue";
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+    <div
+      onClick={() => lead && onOpenLead(lead)}
+      className={`flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950 ${lead ? "cursor-pointer hover:-translate-y-0.5 hover:shadow-md" : ""}`}
+    >
       <div className={`h-2.5 w-2.5 rounded-full ${overdue ? "bg-red-500" : "bg-blue-600"}`} />
       <div className="min-w-0 flex-1">
         <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">{lead?.name || `Lead #${followUp.leadId}`}</p>
@@ -36,6 +40,7 @@ function TaskRow({ followUp, lead }: { followUp: FollowUp; lead?: Lead }) {
 
 export default function DashboardPage() {
   const [data, setData] = useState<DashData | null>(null);
+  const [activeLead, setActiveLead] = useState<Lead | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -52,6 +57,22 @@ export default function DashboardPage() {
   const overdue = s?.overdue ?? 0;
   const maxStageValue = Math.max(...(data?.stageBreakdown?.map((row) => row.value) ?? [1]), 1);
   const today = new Date().toLocaleDateString("en-IN", { weekday: "long", day: "numeric", month: "long" });
+
+  async function handleDeleteLead(id: number) {
+    if (!window.confirm("Are you sure you want to delete this lead? This action cannot be undone.")) return;
+    try {
+      await api.deleteLead(id);
+      setData((prev) => prev ? {
+        ...prev,
+        leads: prev.leads.filter((lead) => lead.id !== id),
+        priorityLeads: prev.priorityLeads.filter((lead) => lead.id !== id),
+        upcomingFollowUps: prev.upcomingFollowUps.filter((followUp) => followUp.leadId !== id),
+      } : prev);
+      setActiveLead(null);
+    } catch (err: any) {
+      alert(err.message || "Failed to delete lead");
+    }
+  }
 
   return (
     <div className={pageWrap}>
@@ -113,7 +134,7 @@ export default function DashboardPage() {
           ) : data?.upcomingFollowUps?.length ? (
             <div className="space-y-3 p-4">
               {data.upcomingFollowUps.slice(0, 7).map((f) => (
-                <TaskRow key={f.id} followUp={f} lead={allLeads.find((lead) => lead.id === f.leadId)} />
+                <TaskRow key={f.id} followUp={f} lead={allLeads.find((lead) => lead.id === f.leadId)} onOpenLead={setActiveLead} />
               ))}
             </div>
           ) : (
@@ -132,7 +153,7 @@ export default function DashboardPage() {
           ) : hotLeads.length ? (
             <div className="space-y-3 p-4">
               {hotLeads.slice(0, 6).map((lead) => (
-                <div key={lead.id} className="flex items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm dark:border-slate-800 dark:bg-slate-950">
+                <div key={lead.id} onClick={() => setActiveLead(lead)} className="flex cursor-pointer items-center gap-3 rounded-lg border border-slate-200 bg-white p-3 shadow-sm hover:-translate-y-0.5 hover:shadow-md dark:border-slate-800 dark:bg-slate-950">
                   <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-blue-50 text-xs font-bold text-blue-700 dark:bg-blue-500/15 dark:text-blue-300">
                     {lead.name.slice(0, 2).toUpperCase()}
                   </div>
@@ -140,7 +161,8 @@ export default function DashboardPage() {
                     <p className="truncate text-sm font-semibold text-slate-950 dark:text-white">{lead.name}</p>
                     <p className="truncate text-xs text-slate-500 dark:text-slate-400">{lead.project} - {lead.location}</p>
                   </div>
-                  <div className="flex gap-2">
+                  <div className="flex gap-2" onClick={(event) => event.stopPropagation()}>
+                    <button onClick={() => setActiveLead(lead)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Details</button>
                     <a href={`tel:${lead.phone}`} className="rounded-lg bg-blue-600 px-3 py-2 text-xs font-semibold text-white hover:bg-blue-700">Call</a>
                     <a href={`https://wa.me/${lead.phone.replace(/\D/g, "")}`} className="rounded-lg border border-emerald-200 bg-emerald-50 px-3 py-2 text-xs font-semibold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">WA</a>
                   </div>
@@ -173,6 +195,18 @@ export default function DashboardPage() {
           )}
         </Section>
       </div>
+
+      {activeLead && (
+        <LeadDetailDrawer
+          lead={activeLead}
+          onClose={() => setActiveLead(null)}
+          onLog={() => {
+            setActiveLead(null);
+            window.location.href = "/follow-ups";
+          }}
+          onDelete={() => handleDeleteLead(activeLead.id)}
+        />
+      )}
     </div>
   );
 }

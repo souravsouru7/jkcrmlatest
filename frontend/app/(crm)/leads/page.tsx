@@ -13,7 +13,7 @@ export default function LeadsPage() {
   const [query, setQuery] = useState("");
   const [qualityFilter, setQualityFilter] = useState("All");
   const [qualityTypeFilter, setQualityTypeFilter] = useState("All");
-  const [locationFilter, setLocationFilter] = useState("All");
+  const [locationFilter, setLocationFilter] = useState<string[]>([]);
   const [dateFilter, setDateFilter] = useState("");
   const [budgetFilter, setBudgetFilter] = useState("");
   const [showForm, setShowForm] = useState(false);
@@ -51,7 +51,7 @@ export default function LeadsPage() {
       haystack.includes(query.toLowerCase()) &&
       (qualityFilter === "All" || quality === qualityFilter) &&
       (qualityTypeFilter === "All" || qualityType === qualityTypeFilter) &&
-      (locationFilter === "All" || location === locationFilter) &&
+      (locationFilter.length === 0 || locationFilter.includes(location)) &&
       (!dateFilter || date.includes(dateFilter)) &&
       (!budgetFilter || budget.toLowerCase().includes(budgetFilter.toLowerCase()))
     );
@@ -140,7 +140,7 @@ export default function LeadsPage() {
           </div>
           <FilterSelect label="Quality" value={qualityFilter} onChange={setQualityFilter} options={["All", ...QUALITY_VALUES]} />
           <FilterSelect label="Quality Type" value={qualityTypeFilter} onChange={setQualityTypeFilter} options={["All", ...QUALITY_TYPE_VALUES]} />
-          <FilterSelect label="Location" value={locationFilter} onChange={setLocationFilter} options={["All", ...locations]} />
+          <LocationMultiSelect value={locationFilter} onChange={setLocationFilter} options={locations} />
           <div>
             <label className={labelCls}>Date</label>
             <input className={inputCls} value={dateFilter} onChange={(e) => setDateFilter(e.target.value)} placeholder="Date" />
@@ -379,6 +379,86 @@ function FilterSelect({ label, value, options, onChange }: { label: string; valu
       <select className={selectCls} value={value} onChange={(e) => onChange(e.target.value)}>
         {options.map((option) => <option key={option} value={option}>{option}</option>)}
       </select>
+    </div>
+  );
+}
+
+function LocationMultiSelect({ value, options, onChange }: { value: string[]; options: string[]; onChange: (value: string[]) => void }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState("");
+  const filteredOptions = options.filter((option) => option.toLowerCase().includes(search.toLowerCase()));
+  const selectedText = value.length === 0 ? "All locations" : `${value.length} selected`;
+
+  function toggle(option: string) {
+    onChange(value.includes(option) ? value.filter((item) => item !== option) : [...value, option]);
+  }
+
+  return (
+    <div className="relative">
+      <label className={labelCls}>Location</label>
+      <button
+        type="button"
+        onClick={() => setOpen((current) => !current)}
+        className={`${inputCls} flex min-h-[46px] items-center justify-between gap-3 text-left`}
+      >
+        <span className="min-w-0 truncate">{selectedText}</span>
+        <span className="text-xs font-bold text-slate-400">{open ? "Close" : "Select"}</span>
+      </button>
+
+      {value.length > 0 && (
+        <div className="mt-2 flex flex-wrap gap-1.5">
+          {value.slice(0, 3).map((item) => (
+            <button
+              key={item}
+              type="button"
+              onClick={() => toggle(item)}
+              className="rounded-full bg-blue-50 px-2.5 py-1 text-[11px] font-bold text-blue-700 hover:bg-blue-100 dark:bg-blue-500/15 dark:text-blue-300"
+            >
+              {item} x
+            </button>
+          ))}
+          {value.length > 3 && <span className="rounded-full bg-slate-100 px-2.5 py-1 text-[11px] font-bold text-slate-500 dark:bg-slate-800 dark:text-slate-300">+{value.length - 3}</span>}
+          <button type="button" onClick={() => onChange([])} className="rounded-full px-2.5 py-1 text-[11px] font-bold text-slate-500 hover:bg-slate-100 dark:hover:bg-slate-800">Clear</button>
+        </div>
+      )}
+
+      {open && (
+        <div className="absolute left-0 right-0 top-full z-30 mt-2 overflow-hidden rounded-lg border border-slate-200 bg-white shadow-2xl dark:border-slate-800 dark:bg-slate-950">
+          <div className="border-b border-slate-100 p-3 dark:border-slate-800">
+            <input
+              className={inputCls}
+              value={search}
+              onChange={(event) => setSearch(event.target.value)}
+              placeholder="Search location..."
+              autoFocus
+            />
+            <div className="mt-2 flex gap-2">
+              <button type="button" onClick={() => onChange([])} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">All</button>
+              <button type="button" onClick={() => onChange(filteredOptions)} className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-bold text-slate-600 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Select shown</button>
+            </div>
+          </div>
+          <div className="max-h-72 overflow-y-auto p-2">
+            {filteredOptions.length ? filteredOptions.map((option) => {
+              const checked = value.includes(option);
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => toggle(option)}
+                  className={`flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm font-semibold ${checked ? "bg-blue-50 text-blue-700 dark:bg-blue-500/15 dark:text-blue-300" : "text-slate-700 hover:bg-slate-50 dark:text-slate-200 dark:hover:bg-slate-900"}`}
+                >
+                  <span className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border text-xs ${checked ? "border-blue-600 bg-blue-600 text-white" : "border-slate-300 dark:border-slate-700"}`}>
+                    {checked ? "✓" : ""}
+                  </span>
+                  <span className="min-w-0 break-words">{option}</span>
+                </button>
+              );
+            }) : (
+              <p className="px-3 py-6 text-center text-sm font-semibold text-slate-500 dark:text-slate-400">No locations found</p>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
