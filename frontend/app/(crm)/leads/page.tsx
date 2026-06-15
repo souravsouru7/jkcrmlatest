@@ -20,6 +20,7 @@ export default function LeadsPage() {
   const [activeLead, setActiveLead] = useState<Lead | null>(null);
   const [loggingLead, setLoggingLead] = useState<Lead | null>(null);
   const [updatingLead, setUpdatingLead] = useState<Lead | null>(null);
+  const [updateQuality, setUpdateQuality] = useState("Awaiting Update");
   const [saving, setSaving] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -112,6 +113,11 @@ export default function LeadsPage() {
     }
   }
 
+  function openUpdateLead(lead: Lead) {
+    setUpdateQuality(lead.quality || sheetValue(lead, "Quality") || "Awaiting Update");
+    setUpdatingLead(lead);
+  }
+
   async function handleDelete(id: number) {
     if (!window.confirm("Are you sure you want to delete this lead? This action cannot be undone.")) return;
     try {
@@ -200,7 +206,7 @@ export default function LeadsPage() {
                   <div className="mt-4 grid grid-cols-4 gap-2 border-t border-slate-100 pt-4 dark:border-slate-800" onClick={(e) => e.stopPropagation()}>
                     {phone ? <a href={`tel:${phone}`} className="rounded-lg bg-blue-600 px-2 py-2.5 text-center text-xs font-bold text-white hover:bg-blue-700">Call</a> : <span className="rounded-lg bg-slate-100 px-2 py-2.5 text-center text-xs font-bold text-slate-400 dark:bg-slate-800">Call</span>}
                     {phone ? <a href={`https://wa.me/${normalizePhone(phone)}`} className="rounded-lg border border-emerald-200 bg-emerald-50 px-2 py-2.5 text-center text-xs font-bold text-emerald-700 hover:bg-emerald-100 dark:border-emerald-500/30 dark:bg-emerald-500/10 dark:text-emerald-300">WA</a> : <span className="rounded-lg bg-slate-100 px-2 py-2.5 text-center text-xs font-bold text-slate-400 dark:bg-slate-800">WA</span>}
-                    <button onClick={() => setUpdatingLead(lead)} className="rounded-lg bg-slate-900 px-2 py-2.5 text-xs font-bold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">Update</button>
+                    <button onClick={() => openUpdateLead(lead)} className="rounded-lg bg-slate-900 px-2 py-2.5 text-xs font-bold text-white hover:bg-slate-800 dark:bg-white dark:text-slate-950 dark:hover:bg-slate-200">Update</button>
                     <button onClick={() => setLoggingLead(lead)} className="rounded-lg border border-slate-200 px-2 py-2.5 text-xs font-bold text-slate-700 hover:bg-slate-50 dark:border-slate-700 dark:text-slate-200 dark:hover:bg-slate-800">Follow</button>
                   </div>
                 </article>
@@ -272,13 +278,14 @@ export default function LeadsPage() {
         <Modal title={`Update Lead - ${sheetValue(updatingLead, "Name") || "Lead"}`} onClose={() => setUpdatingLead(null)} max="max-w-3xl">
           <form onSubmit={handleQualificationUpdate} className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <Field label="Quality"><select name="quality" defaultValue={updatingLead.quality || sheetValue(updatingLead, "Quality") || "Awaiting Update"} className={selectCls}>{QUALITY_VALUES.map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
-              <Field label="Quality Type"><select name="qualityType" defaultValue={updatingLead.qualityType || sheetValue(updatingLead, "Quality Type") || "Awaiting Update"} className={selectCls}>{QUALITY_TYPE_VALUES.map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
-              <Field label="Lead Temperature"><select name="leadTemperature" defaultValue={updatingLead.leadTemperature || updatingLead.priority || "Warm"} className={selectCls}>{LEAD_TEMPERATURES.map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
-              <Field label="Follow-up Type"><select name="followUpType" defaultValue="Call" className={selectCls}>{FOLLOW_UP_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}</select></Field>
-              <Field label="Next Follow-up Date"><input name="nextFollowupDate" type="date" defaultValue={updatingLead.nextFollowupDate || updatingLead.nextFollowUp || ""} className={inputCls} /></Field>
+              <Field label="Quality"><select name="quality" value={updateQuality} onChange={(event) => setUpdateQuality(event.target.value)} className={selectCls}>{QUALITY_VALUES.map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
+              <Field label={updateQuality === "Negative" ? "Dump Reason" : "Quality Type"}><select name="qualityType" defaultValue={updatingLead.qualityType || sheetValue(updatingLead, "Quality Type") || "Awaiting Update"} className={selectCls}>{QUALITY_TYPE_VALUES.map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
+              {updateQuality !== "Negative" && <Field label="Lead Temperature"><select name="leadTemperature" defaultValue={updatingLead.leadTemperature || updatingLead.priority || "Warm"} className={selectCls}>{LEAD_TEMPERATURES.map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>}
+              {updateQuality !== "Negative" && <Field label="Follow-up Type"><select name="followUpType" defaultValue="Call" className={selectCls}>{FOLLOW_UP_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}</select></Field>}
+              {updateQuality !== "Negative" && <Field label="Next Follow-up Date"><input name="nextFollowupDate" type="date" defaultValue={updatingLead.nextFollowupDate || updatingLead.nextFollowUp || ""} className={inputCls} /></Field>}
               <Field label="Call Outcome"><input name="callOutcome" className={inputCls} placeholder="Connected, no answer, converted..." /></Field>
-              <div className="sm:col-span-2"><Field label="Call Notes"><textarea name="callNotes" rows={3} className={inputCls} placeholder="Conversation summary, requirement, budget, objections..." /></Field></div>
+              {updateQuality === "Negative" && <div className="sm:col-span-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">This lead will move to Negative Leads / Dump automatically. The selected dump reason will be saved as the lost reason.</div>}
+              <div className="sm:col-span-2"><Field label={updateQuality === "Negative" ? "Reason Notes" : "Call Notes"}><textarea name="callNotes" rows={3} className={inputCls} placeholder={updateQuality === "Negative" ? "Add rejection details..." : "Conversation summary, requirement, budget, objections..."} /></Field></div>
               <div className="sm:col-span-2"><Field label="Internal Remarks"><textarea name="internalRemarks" rows={2} defaultValue={updatingLead.internalRemarks || ""} className={inputCls} /></Field></div>
               <div className="sm:col-span-2"><Field label="Sales Remarks"><textarea name="salesRemarks" rows={2} defaultValue={updatingLead.salesRemarks || ""} className={inputCls} /></Field></div>
             </div>

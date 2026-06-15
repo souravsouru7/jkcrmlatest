@@ -16,6 +16,8 @@ export default function UpdateLeadModal({
   onSaved: (lead: Lead) => void;
 }) {
   const [saving, setSaving] = useState(false);
+  const [quality, setQuality] = useState(lead.quality || lead.Quality || "Awaiting Update");
+  const isNegative = quality === "Negative";
 
   async function handleSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -42,13 +44,14 @@ export default function UpdateLeadModal({
         </div>
         <form onSubmit={handleSubmit} className="space-y-4 p-4 sm:p-6">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-            <Field label="Quality"><select name="quality" defaultValue={lead.quality || lead.Quality || "Awaiting Update"} className={selectCls}>{QUALITY_VALUES.map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
-            <Field label="Quality Type"><select name="qualityType" defaultValue={lead.qualityType || lead["Quality Type"] || "Awaiting Update"} className={selectCls}>{QUALITY_TYPE_VALUES.map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
-            <Field label="Lead Temperature"><select name="leadTemperature" defaultValue={lead.leadTemperature || lead.priority || "Warm"} className={selectCls}>{LEAD_TEMPERATURES.map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
-            <Field label="Follow-up Type"><select name="followUpType" defaultValue="Call" className={selectCls}>{FOLLOW_UP_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}</select></Field>
-            <Field label="Next Follow-up Date"><input name="nextFollowupDate" type="date" defaultValue={lead.nextFollowupDate || lead.nextFollowUp || ""} className={inputCls} /></Field>
+            <Field label="Quality"><select name="quality" value={quality} onChange={(event) => setQuality(event.target.value)} className={selectCls}>{QUALITY_VALUES.map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
+            <Field label={isNegative ? "Dump Reason" : "Quality Type"}><select name="qualityType" defaultValue={lead.qualityType || lead["Quality Type"] || "Awaiting Update"} className={selectCls}>{QUALITY_TYPE_VALUES.map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>
+            {!isNegative && <Field label="Lead Temperature"><select name="leadTemperature" defaultValue={lead.leadTemperature || lead.priority || "Warm"} className={selectCls}>{LEAD_TEMPERATURES.map((item) => <option key={item} value={item}>{item}</option>)}</select></Field>}
+            {!isNegative && <Field label="Follow-up Type"><select name="followUpType" defaultValue="Call" className={selectCls}>{FOLLOW_UP_TYPES.map((type) => <option key={type} value={type}>{type}</option>)}</select></Field>}
+            {!isNegative && <Field label="Next Follow-up Date"><input name="nextFollowupDate" type="date" defaultValue={lead.nextFollowupDate || lead.nextFollowUp || ""} className={inputCls} /></Field>}
             <Field label="Call Outcome"><input name="callOutcome" className={inputCls} placeholder="Connected, no answer, converted..." /></Field>
-            <div className="sm:col-span-2"><Field label="Call Notes"><textarea name="callNotes" rows={3} className={inputCls} placeholder="Conversation summary, requirement, budget, objections..." /></Field></div>
+            {isNegative && <div className="sm:col-span-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm font-semibold text-red-700 dark:border-red-500/30 dark:bg-red-500/10 dark:text-red-300">This lead will move to Negative Leads / Dump automatically. The selected dump reason will be saved as the lost reason.</div>}
+            <div className="sm:col-span-2"><Field label={isNegative ? "Reason Notes" : "Call Notes"}><textarea name="callNotes" rows={3} className={inputCls} placeholder={isNegative ? "Add rejection details..." : "Conversation summary, requirement, budget, objections..."} /></Field></div>
             <div className="sm:col-span-2"><Field label="Internal Remarks"><textarea name="internalRemarks" rows={2} defaultValue={lead.internalRemarks || ""} className={inputCls} /></Field></div>
             <div className="sm:col-span-2"><Field label="Sales Remarks"><textarea name="salesRemarks" rows={2} defaultValue={lead.salesRemarks || ""} className={inputCls} /></Field></div>
           </div>

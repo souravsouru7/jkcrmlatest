@@ -3,8 +3,8 @@ import LeadCategoryPage from "@/components/LeadCategoryPage";
 export default function NegativeLeadsPage() {
   return (
     <LeadCategoryPage
-      title="Negative Leads"
-      subtitle="Quality is Negative"
+      title="Dump / Negative Leads"
+      subtitle="Quality is Negative with dump reason"
       quality="Negative"
     />
   );

@@ -1,4 +1,4 @@
-import store, { deletePersistedLead, persistFollowUp, persistLead } from "../models/store.js";
+import store, { deletePersistedFollowUpsForLead, deletePersistedLead, persistFollowUp, persistLead } from "../models/store.js";
 
 const STAGES = ["New Lead", "Contacted", "Qualified", "Site Visit", "Quotation", "Negotiation", "Won", "Lost"];
 const PRIORITIES = ["Hot", "Warm", "Cold"];
@@ -57,12 +57,22 @@ function appendAudit(lead, req, action, changes) {
   });
 }
 
-function routeLeadByQuality(lead, quality) {
+function routeLeadByQuality(lead, quality, qualityType = "") {
   if (quality === "Positive" && (lead.stage === "New Lead" || lead.stage === "Lost")) {
     lead.stage = "Contacted";
+    lead.lostReason = null;
   }
-  if (quality === "Negative" || quality === "N/A") {
+  if (quality === "Negative") {
     lead.stage = "Lost";
+    lead.lostReason = qualityType || "Negative";
+    lead.leadTemperature = "Cold";
+    lead.priority = "Cold";
+    lead.nextFollowupDate = null;
+    lead.nextFollowUp = null;
+  }
+  if (quality === "N/A") {
+    lead.stage = "Lost";
+    lead.lostReason = qualityType || "N/A";
   }
 }
 
@@ -321,12 +331,12 @@ export async function updateQualification(req, res) {
   const now = new Date().toISOString();
   const cleanQuality = normalizeQuality(String(quality || lead.quality || lead.Quality || "Awaiting Update"));
   const cleanQualityType = normalizeQualityType(String(qualityType || lead.qualityType || lead["Quality Type"] || "Awaiting Update"));
-  const cleanTemperature = PRIORITIES.includes(leadTemperature) ? leadTemperature : lead.priority || "Warm";
+  const cleanTemperature = cleanQuality === "Negative" ? "Cold" : (PRIORITIES.includes(leadTemperature) ? leadTemperature : lead.priority || "Warm");
   const notes = callNotes ? String(callNotes).trim() : "";
   const outcome = callOutcome ? String(callOutcome).trim() : "";
   const remarks = internalRemarks ? String(internalRemarks).trim() : "";
   const sales = salesRemarks ? String(salesRemarks).trim() : "";
-  const due = nextFollowupDate ? String(nextFollowupDate) : "";
+  const due = cleanQuality === "Negative" ? "" : (nextFollowupDate ? String(nextFollowupDate) : "");
   const type = followUpType ? String(followUpType) : "Call";
 
   const previous = {
@@ -376,10 +386,14 @@ export async function updateQualification(req, res) {
     lead.callCount = Number(lead.callCount) || lead.callHistory.length || 0;
   }
 
-  routeLeadByQuality(lead, cleanQuality);
+  routeLeadByQuality(lead, cleanQuality, cleanQualityType);
+
+  if (cleanQuality === "Negative") {
+    store.followUps = store.followUps.filter((followUp) => followUp.leadId !== lead.id);
+  }
 
   let followUp = null;
-  if (due) {
+  if (due && cleanQuality !== "Negative") {
     followUp = {
       id: Date.now() + 1,
       leadId: lead.id,
@@ -408,7 +422,11 @@ export async function updateQualification(req, res) {
     callCount: lead.callCount,
   });
 
-  await Promise.all([persistLead(lead), followUp ? persistFollowUp(followUp) : Promise.resolve()]);
+  await Promise.all([
+    persistLead(lead),
+    followUp ? persistFollowUp(followUp) : Promise.resolve(),
+    cleanQuality === "Negative" ? deletePersistedFollowUpsForLead(lead.id) : Promise.resolve(),
+  ]);
 
   return res.json({ lead, followUp });
 }

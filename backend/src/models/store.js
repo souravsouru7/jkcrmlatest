@@ -74,4 +74,8 @@ export async function deletePersistedLead(id) {
   ]);
 }
 
+export async function deletePersistedFollowUpsForLead(id) {
+  await FollowUpModel.deleteMany({ leadId: Number(id) });
+}
+
 export default store;

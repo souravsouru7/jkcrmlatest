@@ -49,7 +49,7 @@ export default function LeadCategoryPage({
                   <Badge value={lead.leadTemperature || lead.priority || "Warm"} />
                 </div>
                 <div className="mt-4 grid grid-cols-1 gap-3 text-xs sm:grid-cols-2">
-                  <Info label="Quality Type" value={lead.qualityType || lead["Quality Type"] || "-"} />
+                  <Info label={quality === "Negative" ? "Dump Reason" : "Quality Type"} value={lead.lostReason || lead.qualityType || lead["Quality Type"] || "-"} />
                   <Info label="Calls" value={String(lead.callCount || 0)} />
                   <Info label="Last Call" value={shortDate(lead.lastCallDate)} />
                   <Info label="Next Follow-up" value={shortDate(lead.nextFollowupDate || lead.nextFollowUp)} />
