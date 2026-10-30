@@ -1,4 +1,4 @@
-import store from "../models/store.js";
+import store, { persistLead, persistQuotation } from "../models/store.js";
 
 const STATUSES = ["Draft", "Sent", "Accepted", "Rejected", "Expired"];
 
@@ -22,7 +22,7 @@ export function getQuotations(req, res) {
   return res.json({ quotations, total: quotations.length });
 }
 
-export function createQuotation(req, res) {
+export async function createQuotation(req, res) {
   const { leadId, amount, validTill, discount, tax, terms } = req.body;
 
   if (!leadId || !amount || !validTill) {
@@ -49,11 +49,12 @@ export function createQuotation(req, res) {
   lead.lastActivity = `Quotation ${quotation.number} created`;
   lead.stage = "Quotation";
   lead.updatedAt = new Date().toISOString();
+  await Promise.all([persistQuotation(quotation), persistLead(lead)]);
 
   return res.status(201).json(quotation);
 }
 
-export function updateQuotation(req, res) {
+export async function updateQuotation(req, res) {
   const quotation = store.quotations.find((q) => q.id === Number(req.params.id));
   if (!quotation) return res.status(404).json({ error: "Quotation not found" });
 
@@ -68,8 +69,10 @@ export function updateQuotation(req, res) {
       lead.lastActivity = `Quotation ${quotation.number} accepted`;
       lead.stage = "Won";
       lead.updatedAt = new Date().toISOString();
+      await persistLead(lead);
     }
   }
+  await persistQuotation(quotation);
 
   return res.json(quotation);
 }

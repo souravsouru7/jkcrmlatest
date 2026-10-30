@@ -1,5 +1,7 @@
 import store, { persistFollowUp, persistLead } from "../models/store.js";
+import crypto from "crypto";
 import { config } from "../config/env.js";
+import { LeadModel } from "../models/mongo.js";
 
 const STAGES = ["New Lead", "Contacted", "Qualified", "Site Visit", "Quotation", "Negotiation", "Won", "Lost"];
 const PRIORITIES = ["Hot", "Warm", "Cold"];
@@ -185,6 +187,9 @@ const FIELD_MAP = {
   call3: ["call 3"],
   call4: ["call 4"],
   call5: ["call 5"],
+  platform: ["platform", "source"],
+  campaign: ["campaign_name", "campaign name", "campaign"],
+  ad: ["ad_name", "ad name"],
 };
 
 function normalizeValue(value) {
@@ -211,13 +216,20 @@ function resolveFields(row) {
 function mapPlatform(platform) {
   if (!platform) return "Google Sheet";
   const p = String(platform).toLowerCase().trim();
-  if (p.includes("instagram")) return "Instagram";
+  if (p.includes("instagram") || p === "ig") return "Instagram";
   if (p.includes("facebook") || p.includes("fb")) return "Facebook Ads";
   if (p.includes("whatsapp")) return "WhatsApp";
   if (p.includes("phone") || p.includes("call")) return "Phone Call";
   if (p.includes("referral") || p.includes("refer")) return "Referral";
   if (p.includes("marketplace")) return "Marketplace";
   if (p.includes("google") || p.includes("website")) return "Website";
+  return "Google Sheet";
+}
+
+// Rows from the Meta Ads tab are Facebook leads unless a Platform column says otherwise.
+function resolveSheetSource(platform, sheetName) {
+  if (platform) return mapPlatform(platform);
+  if (/meta|facebook/i.test(sheetName || "")) return "Facebook Ads";
   return "Google Sheet";
 }
 
@@ -258,17 +270,30 @@ export async function googleSheetWebhook(req, res) {
   if (!row || typeof row !== "object") {
     return res.status(400).json({ error: "Missing row data" });
   }
+  const result = await importLeadRow(row, { sheetName, label: "Google Sheet" });
+  return res.status(result.status).json(result.body);
+}
+
+function reply(status, body) {
+  return { status, body };
+}
+
+// Shared by the Google Sheet and Facebook webhooks: de-dupes by phone, creates the lead and its first follow-up.
+async function importLeadRow(row, { sheetName, label }) {
 
   const f = resolveFields(row);
+  const source = resolveSheetSource(f.platform, sheetName);
 
   if (!f.name || !f.phone) {
-    return res.status(400).json({ error: "Row must have at least Name and Phone Number columns" });
+    return reply(400, { error: "Row must have at least Name and Phone Number columns" });
   }
 
   const phone = String(f.phone).trim();
-  const existingLead = store.leads.find((lead) => String(lead.phone).trim() === phone);
+  // Check Mongo too: another backend process (e.g. during a restart) may have just saved this lead.
+  const existingLead = store.leads.find((lead) => String(lead.phone).trim() === phone)
+    || await LeadModel.findOne({ phone }, { id: 1 }).lean();
   if (existingLead) {
-    return res.status(200).json({
+    return reply(200, {
       success: true,
       leadId: existingLead.id,
       message: "Lead already exists in CRM",
@@ -276,6 +301,8 @@ export async function googleSheetWebhook(req, res) {
   }
 
   const noteParts = [];
+  if (f.campaign) noteParts.push(`Campaign: ${f.campaign}`);
+  if (f.ad) noteParts.push(`Ad: ${f.ad}`);
   if (f.date) noteParts.push(`Sheet Date: ${f.date}`);
   if (f.dob) noteParts.push(`DOB: ${f.dob}`);
   if (f.budget) noteParts.push(`Estimated Budget: ${f.budget}`);
@@ -313,7 +340,9 @@ export async function googleSheetWebhook(req, res) {
     phone,
     email:    f.email    ? String(f.email).trim()    : "",
     location: f.location ? String(f.location).trim() : "",
-    source:   mapPlatform(f.platform),
+    source,
+    campaign: f.campaign || "",
+    adName: f.ad || "",
     project:  f.project  ? String(f.project).trim()  : "",
     budget:   0,
     estimatedBudget: f.budget ? String(f.budget).trim() : "",
@@ -338,16 +367,16 @@ export async function googleSheetWebhook(req, res) {
     priority: mapPriority(f.quality),
     owner: "Sales Admin",
     nextFollowUp: null,
-    lastActivity: `Lead synced from Google Sheet${sheetName ? ` (${sheetName})` : ""}`,
+    lastActivity: `Lead synced from ${label}${sheetName ? ` (${sheetName})` : ""}`,
     notes:    noteParts.join(" | "),
     lostReason: null,
     auditHistory: [
       {
         id: Date.now(),
-        action: "Lead synced from Google Sheet",
-        changedBy: "Google Sheet",
+        action: `Lead synced from ${label}`,
+        changedBy: label,
         role: "integration",
-        changes: { source: mapPlatform(f.platform), stage: "New Lead", sheetName: sheetName || "" },
+        changes: { source, stage: "New Lead", sheetName: sheetName || "" },
         createdAt: now,
       },
     ],
@@ -363,7 +392,7 @@ export async function googleSheetWebhook(req, res) {
     type: "First Call",
     due: new Date(Date.now() + 86400000).toISOString().slice(0, 10),
     status: "Pending",
-    outcome: "Lead from Google Sheet",
+    outcome: `Lead from ${label}`,
     notes: "",
     createdAt: now,
   };
@@ -371,6 +400,141 @@ export async function googleSheetWebhook(req, res) {
 
   await Promise.all([persistLead(lead), persistFollowUp(followUp)]);
 
-  console.log(`[Google Sheet Sync] New lead: ${lead.name} (${lead.phone}) | source: ${lead.source} | priority: ${lead.priority}`);
-  return res.status(201).json({ success: true, leadId: lead.id, message: "Lead created from Google Sheet" });
+  console.log(`[${label}] New lead: ${lead.name} (${lead.phone}) | source: ${lead.source} | priority: ${lead.priority}`);
+  return reply(201, { success: true, leadId: lead.id, message: `Lead created from ${label}` });
+}
+
+// ---- Facebook Lead Ads ----
+
+// Lead form field names → the column names importLeadRow understands.
+const FB_FIELD_MAP = {
+  full_name: "Name",
+  first_name: "Name",
+  phone_number: "Phone Number",
+  email: "Email",
+  city: "Which location is your property in?",
+  date_of_birth: "DOB",
+};
+
+export function facebookVerify(req, res) {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  if (mode === "subscribe" && config.fbVerifyToken && token === config.fbVerifyToken) {
+    return res.status(200).send(req.query["hub.challenge"]);
+  }
+  return res.sendStatus(403);
+}
+
+function validFacebookSignature(req) {
+  const header = req.headers["x-hub-signature-256"] || "";
+  if (!config.fbAppSecret || !req.rawBody || !header.startsWith("sha256=")) return false;
+  const expected = crypto.createHmac("sha256", config.fbAppSecret).update(req.rawBody).digest("hex");
+  const given = header.slice(7);
+  return given.length === expected.length && crypto.timingSafeEqual(Buffer.from(given), Buffer.from(expected));
+}
+
+async function fetchFacebookLead(leadgenId) {
+  const fields = "field_data,created_time,campaign_name,ad_name,form_id,platform";
+  const url = `https://graph.facebook.com/${config.fbGraphVersion}/${leadgenId}?fields=${fields}&access_token=${encodeURIComponent(config.fbPageToken)}`;
+  const res = await fetch(url);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error?.message || `Graph API error ${res.status}`);
+  return data;
+}
+
+// Custom questions arrive snake_cased ("what_type_of_home_do_you_have?"); turn them back into sheet headers.
+function facebookLeadToRow(fbLead) {
+  const row = {
+    Date: fbLead.created_time ? fbLead.created_time.slice(0, 10) : "",
+    platform: fbLead.platform || "fb",
+    campaign_name: fbLead.campaign_name || "",
+    ad_name: fbLead.ad_name || "",
+  };
+  for (const { name, values } of fbLead.field_data || []) {
+    const key = FB_FIELD_MAP[name] || name.replace(/_/g, " ");
+    if (row[key] === undefined || row[key] === "") row[key] = (values || []).join(", ");
+  }
+  return row;
+}
+
+export async function facebookWebhook(req, res) {
+  if (!validFacebookSignature(req)) {
+    return res.status(401).json({ error: "Invalid signature" });
+  }
+  if (!config.fbPageToken) {
+    return res.status(503).json({ error: "Facebook integration not configured" });
+  }
+
+  const changes = (req.body.entry || []).flatMap((e) => e.changes || []).filter((c) => c.field === "leadgen");
+  const results = [];
+  for (const change of changes) {
+    const leadgenId = change.value?.leadgen_id;
+    if (!leadgenId) continue;
+    try {
+      const row = facebookLeadToRow(await fetchFacebookLead(leadgenId));
+      const result = await importLeadRow(row, { sheetName: "", label: "Facebook Lead Ads" });
+      results.push({ leadgenId, ...result.body });
+    } catch (err) {
+      console.error(`[Facebook Lead Ads] Failed to import lead ${leadgenId}:`, err.message);
+      results.push({ leadgenId, error: err.message });
+    }
+  }
+
+  // Always 200 so Meta doesn't keep retrying leads we've already logged.
+  return res.status(200).json({ received: changes.length, results });
+}
+
+// ---- Facebook Lead Ads polling ----
+// Backup for the webhook: Meta doesn't deliver leadgen webhooks reliably to unpublished apps,
+// so we also pull recent leads from every form on the Page.
+
+const LEAD_FIELDS = "field_data,created_time,campaign_name,ad_name,form_id,platform";
+const seenFacebookLeads = new Set();
+
+async function graphGet(path, params = {}) {
+  const query = new URLSearchParams({ ...params, access_token: config.fbPageToken });
+  const res = await fetch(`https://graph.facebook.com/${config.fbGraphVersion}/${path}?${query}`);
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error?.message || `Graph API error ${res.status}`);
+  return data;
+}
+
+async function pollFacebookLeads(sinceSeconds) {
+  const forms = await graphGet(`${config.fbPageId}/leadgen_forms`, { fields: "id,name", limit: "100" });
+  let created = 0;
+  for (const form of forms.data || []) {
+    const leads = await graphGet(`${form.id}/leads`, {
+      fields: LEAD_FIELDS,
+      limit: "100",
+      filtering: JSON.stringify([{ field: "time_created", operator: "GREATER_THAN", value: sinceSeconds }]),
+    });
+    for (const fbLead of leads.data || []) {
+      if (seenFacebookLeads.has(fbLead.id)) continue;
+      seenFacebookLeads.add(fbLead.id);
+      const result = await importLeadRow(facebookLeadToRow(fbLead), { sheetName: form.name, label: "Facebook Lead Ads" });
+      if (result.status === 201) created += 1;
+    }
+  }
+  return created;
+}
+
+export function startFacebookLeadPolling() {
+  if (!config.fbPageToken || !config.fbPageId || !(config.fbPollSeconds > 0)) return;
+
+  let since = Math.floor(Date.now() / 1000) - config.fbPollLookbackHours * 3600;
+  const tick = async () => {
+    const startedAt = Math.floor(Date.now() / 1000);
+    try {
+      const created = await pollFacebookLeads(since);
+      // Overlap by a minute so leads created during a poll aren't skipped; seenFacebookLeads stops repeats.
+      since = startedAt - 60;
+      if (created > 0) console.log(`[Facebook Lead Ads] Poll imported ${created} new lead(s)`);
+    } catch (err) {
+      console.error("[Facebook Lead Ads] Poll failed:", err.message);
+    }
+  };
+
+  console.log(`[Facebook Lead Ads] Polling Page ${config.fbPageId} every ${config.fbPollSeconds}s`);
+  tick();
+  setInterval(tick, config.fbPollSeconds * 1000);
 }

@@ -1,4 +1,4 @@
-import store from "../models/store.js";
+import store, { persistLead, persistSiteVisit } from "../models/store.js";
 
 const STATUSES = ["Scheduled", "Completed", "Rescheduled", "Cancelled", "No Show"];
 
@@ -14,7 +14,7 @@ export function getSiteVisits(req, res) {
   return res.json({ visits, total: visits.length });
 }
 
-export function createSiteVisit(req, res) {
+export async function createSiteVisit(req, res) {
   const { leadId, date, address, notes, assignedTo } = req.body;
 
   if (!leadId || !date || !address) {
@@ -39,11 +39,12 @@ export function createSiteVisit(req, res) {
   lead.lastActivity = `Site visit scheduled for ${date}`;
   lead.stage = "Site Visit";
   lead.updatedAt = new Date().toISOString();
+  await Promise.all([persistSiteVisit(visit), persistLead(lead)]);
 
   return res.status(201).json(visit);
 }
 
-export function updateSiteVisit(req, res) {
+export async function updateSiteVisit(req, res) {
   const visit = store.visits.find((v) => v.id === Number(req.params.id));
   if (!visit) return res.status(404).json({ error: "Site visit not found" });
 
@@ -57,18 +58,21 @@ export function updateSiteVisit(req, res) {
     if (lead) {
       lead.lastActivity = `Site visit completed — ${visit.date}`;
       lead.updatedAt = new Date().toISOString();
+      await persistLead(lead);
     }
   }
+  await persistSiteVisit(visit);
 
   return res.json(visit);
 }
 
-export function updateScopeSheet(req, res) {
+export async function updateScopeSheet(req, res) {
   const visit = store.visits.find((v) => v.id === Number(req.params.id));
   if (!visit) return res.status(404).json({ error: "Site visit not found" });
 
   visit.scopeSheet = req.body;
   visit.updatedAt = new Date().toISOString();
+  await persistSiteVisit(visit);
 
   return res.json(visit);
 }
