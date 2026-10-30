@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { CONSULTATION_URL } from "@/lib/consultationForm";
 import { api } from "@/lib/api";
 import { FOLLOW_UP_TYPES, LEAD_TEMPERATURES, QUALITY_TYPE_VALUES, QUALITY_VALUES, shortDate } from "@/lib/utils";
 import Badge from "@/components/Badge";
@@ -10,6 +11,7 @@ import LeadDetailDrawer, { DETAIL_ORDER, SheetField, normalizePhone, sheetValue 
 
 export default function LeadsPage() {
   const [leads, setLeads] = useState<Lead[]>([]);
+  const [linkCopied, setLinkCopied] = useState(false);
   const [query, setQuery] = useState("");
   const [qualityFilter, setQualityFilter] = useState("All");
   const [qualityTypeFilter, setQualityTypeFilter] = useState("All");
@@ -135,7 +137,21 @@ export default function LeadsPage() {
         eyebrow="Lead inbox"
         title="Leads"
         subtitle={`${filtered.length} visible - ${leads.length} total leads`}
-        action={<button onClick={() => setShowForm(true)} className={buttonPrimary}>Add Lead</button>}
+        action={
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={async () => {
+                await navigator.clipboard.writeText(CONSULTATION_URL).catch(() => window.prompt("Copy the form link:", CONSULTATION_URL));
+                setLinkCopied(true);
+                setTimeout(() => setLinkCopied(false), 2000);
+              }}
+              className={buttonSecondary}
+            >
+              {linkCopied ? "Link copied" : "Copy form link"}
+            </button>
+            <button onClick={() => setShowForm(true)} className={buttonPrimary}>Add Lead</button>
+          </div>
+        }
       />
 
       <Section title="Filters">

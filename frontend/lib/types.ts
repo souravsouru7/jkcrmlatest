@@ -1,3 +1,5 @@
+import type { ConsultationSubmission } from "@/lib/consultationForm";
+
 export type Stage =
   | "New Lead"
   | "Contacted"
@@ -61,6 +63,7 @@ export type Lead = {
   nextFollowupDate?: string | null;
   internalRemarks?: string;
   salesRemarks?: string;
+  consultations?: ConsultationSubmission[];
   auditHistory?: {
     id: number;
     action: string;
