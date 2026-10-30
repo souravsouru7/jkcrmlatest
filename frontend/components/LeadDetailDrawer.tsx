@@ -1,5 +1,6 @@
 import { Section, buttonGhost, buttonPrimary, buttonSecondary } from "@/components/CrmDesign";
 import type { Lead } from "@/lib/types";
+import { CONSULTATION_QUESTIONS, CONSULTATION_TITLE } from "@/lib/consultationForm";
 
 export const SHEET_FIELDS = [
   "Date",
@@ -82,6 +83,7 @@ interface LeadDetailDrawerProps {
 export default function LeadDetailDrawer({ lead, onClose, onLog, onDelete }: LeadDetailDrawerProps) {
   const phone = sheetValue(lead, "Phone Number");
   const email = sheetValue(lead, "Email");
+  const consultation = lead.consultations?.[lead.consultations.length - 1];
 
   return (
     <div className="fixed inset-0 z-50">
@@ -116,6 +118,33 @@ export default function LeadDetailDrawer({ lead, onClose, onLog, onDelete }: Lea
               ))}
             </div>
           </Section>
+
+          {consultation && (
+            <Section
+              title={CONSULTATION_TITLE}
+              subtitle={`Submitted ${new Date(consultation.submittedAt).toLocaleString()}${lead.consultations!.length > 1 ? ` · ${lead.consultations!.length} submissions, showing latest` : ""}`}
+            >
+              <div className="divide-y divide-slate-100 dark:divide-slate-800">
+                {CONSULTATION_QUESTIONS.map((q) => {
+                  const answer = consultation.answers[q.id];
+                  return (
+                    <div key={q.id} className="px-5 py-4">
+                      <p className="text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">{q.label}</p>
+                      {Array.isArray(answer) ? (
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {answer.map((a) => (
+                            <span key={a} className="rounded-full bg-teal-50 px-3 py-1 text-xs font-semibold text-teal-800 dark:bg-teal-900/40 dark:text-teal-200">{a}</span>
+                          ))}
+                        </div>
+                      ) : (
+                        <p className="mt-1 whitespace-pre-wrap text-sm font-medium text-slate-900 dark:text-slate-100">{answer || "-"}</p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            </Section>
+          )}
         </div>
       </aside>
     </div>

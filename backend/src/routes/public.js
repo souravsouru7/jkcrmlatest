@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { submitLead, googleSheetWebhook, facebookVerify, facebookWebhook } from "../controllers/publicController.js";
+import { submitLead, googleSheetWebhook, facebookVerify, facebookWebhook, submitConsultation } from "../controllers/publicController.js";
 
 const router = Router();
 
@@ -8,6 +8,9 @@ router.post("/lead", submitLead);
 
 // Google Sheet sync — protected by webhook secret
 router.post("/google-sheet", googleSheetWebhook);
+
+// Client consultation form (jkcrm.site/consultation) — public, rate limited
+router.post("/consultation", submitConsultation);
 
 // Facebook Lead Ads — Meta webhook verification + leadgen events
 router.get("/facebook", facebookVerify);

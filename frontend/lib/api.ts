@@ -57,6 +57,13 @@ export const api = {
       body: JSON.stringify({ email, password }),
     }),
 
+  // Public consultation form (no login)
+  submitConsultation: (answers: Record<string, string | string[]>) =>
+    request<{ success: boolean; message: string }>("/public/consultation", {
+      method: "POST",
+      body: JSON.stringify({ answers }),
+    }),
+
   // Dashboard
   dashboard: () => request<Record<string, unknown>>("/dashboard"),
   crmData: () => request<Record<string, unknown>>("/dashboard/crm"),

@@ -538,3 +538,86 @@ export function startFacebookLeadPolling() {
   tick();
   setInterval(tick, config.fbPollSeconds * 1000);
 }
+
+// ---- Client consultation form ----
+
+// Question ids from frontend/lib/consultationForm.ts; anything else in the payload is ignored.
+const CONSULTATION_FIELDS = [
+  "name", "phone", "email", "location", "propertyType", "spaces", "style", "atmosphere", "colorPalette",
+  "budgetComfort", "styleSatisfaction", "budget", "materialFinish", "kitchenType", "wardrobeType",
+  "startTime", "completionTimeline", "services", "notes",
+];
+
+function cleanConsultationAnswers(raw) {
+  const answers = {};
+  for (const id of CONSULTATION_FIELDS) {
+    const value = raw[id];
+    if (Array.isArray(value)) {
+      const list = value.map((v) => String(v).trim().slice(0, 200)).filter(Boolean).slice(0, 30);
+      if (list.length) answers[id] = list;
+    } else if (value !== undefined && value !== null) {
+      const text = String(value).trim().slice(0, 2000);
+      if (text) answers[id] = text;
+    }
+  }
+  return answers;
+}
+
+const lastTenDigits = (phone) => String(phone || "").replace(/\D/g, "").slice(-10);
+const joinAnswer = (value) => (Array.isArray(value) ? value.join(", ") : value || "");
+
+export async function submitConsultation(req, res) {
+  const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress || "unknown";
+  if (isRateLimited(ip)) {
+    return res.status(429).json({ error: "Too many submissions. Please try again later." });
+  }
+
+  const raw = req.body?.answers;
+  if (!raw || typeof raw !== "object") {
+    return res.status(400).json({ error: "Missing form answers" });
+  }
+  const answers = cleanConsultationAnswers(raw);
+  if (!answers.name || !answers.phone || lastTenDigits(answers.phone).length < 10) {
+    return res.status(400).json({ error: "Please enter your name and a valid phone number" });
+  }
+
+  // Same person filling the form again (or an existing Facebook/website lead) → attach to that lead.
+  const digits = lastTenDigits(answers.phone);
+  let lead = store.leads.find((l) => lastTenDigits(l.phone) === digits);
+
+  if (!lead) {
+    const result = await importLeadRow({
+      Name: answers.name,
+      "Phone Number": answers.phone,
+      Email: answers.email || "",
+      "Which location is your property in?": answers.location || "",
+      "What type of home do you have?": joinAnswer(answers.propertyType),
+      "What is your estimated interior budget?": joinAnswer(answers.budget),
+      "Initial Comments": answers.notes || "",
+      platform: "website",
+    }, { sheetName: "", label: "Consultation Form" });
+    if (result.status >= 400) return res.status(result.status).json(result.body);
+    lead = store.leads.find((l) => l.id === result.body.leadId);
+  }
+
+  const now = new Date().toISOString();
+  lead.consultations = [...(lead.consultations || []), { submittedAt: now, answers }];
+  if (!lead.email && answers.email) lead.email = lead.Email = answers.email;
+  if (!lead.location && answers.location) lead.location = lead["Which location is your property in?"] = answers.location;
+  if (!lead.project && answers.propertyType) lead.project = lead["What type of home do you have?"] = joinAnswer(answers.propertyType);
+  if (!lead.estimatedBudget && answers.budget) lead.estimatedBudget = lead["What is your estimated interior budget?"] = joinAnswer(answers.budget);
+  lead.lastActivity = "Consultation form submitted";
+  lead.auditHistory = [...(lead.auditHistory || []), {
+    id: Date.now(),
+    action: "Consultation form submitted",
+    changedBy: "Consultation Form",
+    role: "public",
+    changes: { budget: joinAnswer(answers.budget), startTime: answers.startTime || "" },
+    createdAt: now,
+  }];
+  lead.updatedAt = now;
+  await persistLead(lead);
+
+  console.log(`[Consultation Form] ${lead.name} (${lead.phone}) submitted the consultation form`);
+  return res.status(201).json({ success: true, message: "Thank you! Our team will contact you shortly." });
+}
