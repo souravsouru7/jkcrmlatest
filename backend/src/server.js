@@ -4,6 +4,7 @@ import { config } from "./config/env.js";
 import { connectDB } from "./config/db.js";
 import { hydrateStoreFromMongo, seedDemoDataIfEmpty } from "./models/store.js";
 import { seedAdminUser } from "./models/users.js";
+import { startFacebookLeadPolling } from "./controllers/publicController.js";
 
 import publicRoutes from "./routes/public.js";
 import authRoutes from "./routes/auth.js";
@@ -21,7 +22,8 @@ app.use(cors({
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "x-api-key", "x-sheet-secret"],
 }));
-app.use(express.json());
+// Keep the raw body so the Facebook webhook can verify Meta's signature.
+app.use(express.json({ verify: (req, _res, buf) => { req.rawBody = buf; } }));
 
 app.get("/api/health", (_req, res) => {
   res.json({ status: "ok", service: "jk-sales-crm", env: config.nodeEnv });
@@ -52,6 +54,7 @@ connectDB()
     app.listen(config.port, () => {
       console.log(`JK Sales CRM backend -> http://localhost:${config.port}`);
     });
+    startFacebookLeadPolling();
   })
   .catch((err) => {
     console.error("MongoDB connection failed:", err.message);

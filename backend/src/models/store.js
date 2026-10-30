@@ -1,6 +1,6 @@
 import { seedLeads, seedFollowUps, seedVisits, seedQuotations } from "../data/seed.js";
 import { config } from "../config/env.js";
-import { FollowUpModel, LeadModel } from "./mongo.js";
+import { FollowUpModel, LeadModel, QuotationModel, SiteVisitModel } from "./mongo.js";
 
 const store = {
   leads: seedLeads.map((l) => ({ ...l })),
@@ -15,18 +15,18 @@ function cleanDoc(doc) {
 }
 
 export async function hydrateStoreFromMongo() {
-  const [leads, followUps] = await Promise.all([
+  const [leads, followUps, quotations, visits] = await Promise.all([
     LeadModel.find({}).sort({ createdAt: -1, id: -1 }).lean(),
     FollowUpModel.find({}).sort({ due: 1, id: -1 }).lean(),
+    QuotationModel.find({}).sort({ createdAt: -1, id: -1 }).lean(),
+    SiteVisitModel.find({}).sort({ date: -1, id: -1 }).lean(),
   ]);
 
-  if (leads.length > 0) {
-    store.leads = leads.map(cleanDoc);
-  }
-
-  if (followUps.length > 0) {
-    store.followUps = followUps.map(cleanDoc);
-  }
+  // Mongo is the source of truth: an empty collection means an empty CRM, not seed data.
+  store.leads = leads.map(cleanDoc);
+  store.followUps = followUps.map(cleanDoc);
+  store.quotations = quotations.map(cleanDoc);
+  store.visits = visits.map(cleanDoc);
 
   console.log(`Mongo data loaded -> ${store.leads.length} leads, ${store.followUps.length} follow-ups`);
 }
@@ -36,14 +36,20 @@ export async function seedDemoDataIfEmpty() {
     await Promise.all([
       LeadModel.deleteMany({}),
       FollowUpModel.deleteMany({}),
+      QuotationModel.deleteMany({}),
+      SiteVisitModel.deleteMany({}),
     ]);
 
     if (seedLeads.length > 0) await LeadModel.insertMany(seedLeads);
     if (seedFollowUps.length > 0) await FollowUpModel.insertMany(seedFollowUps);
+    if (seedQuotations.length > 0) await QuotationModel.insertMany(seedQuotations);
+    if (seedVisits.length > 0) await SiteVisitModel.insertMany(seedVisits);
 
     console.log(`Demo data reset -> ${seedLeads.length} leads, ${seedFollowUps.length} follow-ups`);
     return;
   }
+
+  if (!config.seedDemoData) return;
 
   const leadCount = await LeadModel.countDocuments({});
   const followUpCount = await FollowUpModel.countDocuments({});
@@ -65,6 +71,14 @@ export async function persistLead(lead) {
 
 export async function persistFollowUp(followUp) {
   await FollowUpModel.updateOne({ id: followUp.id }, { $set: followUp }, { upsert: true });
+}
+
+export async function persistQuotation(quotation) {
+  await QuotationModel.updateOne({ id: quotation.id }, { $set: quotation }, { upsert: true });
+}
+
+export async function persistSiteVisit(visit) {
+  await SiteVisitModel.updateOne({ id: visit.id }, { $set: visit }, { upsert: true });
 }
 
 export async function deletePersistedLead(id) {

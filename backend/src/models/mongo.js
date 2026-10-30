@@ -14,6 +14,16 @@ const followUpSchema = new mongoose.Schema({
   leadId: { type: Number, index: true },
 }, flexibleOptions);
 
+const quotationSchema = new mongoose.Schema({
+  id: { type: Number, required: true, unique: true, index: true },
+  leadId: { type: Number, index: true },
+}, flexibleOptions);
+
+const siteVisitSchema = new mongoose.Schema({
+  id: { type: Number, required: true, unique: true, index: true },
+  leadId: { type: Number, index: true },
+}, flexibleOptions);
+
 const userSchema = new mongoose.Schema({
   email: { type: String, required: true, unique: true, index: true },
   passwordHash: { type: String, required: true },
@@ -26,4 +36,6 @@ const userSchema = new mongoose.Schema({
 
 export const LeadModel = mongoose.models.Lead || mongoose.model("Lead", leadSchema, "leads");
 export const FollowUpModel = mongoose.models.FollowUp || mongoose.model("FollowUp", followUpSchema, "followUps");
+export const QuotationModel = mongoose.models.Quotation || mongoose.model("Quotation", quotationSchema, "quotations");
+export const SiteVisitModel = mongoose.models.SiteVisit || mongoose.model("SiteVisit", siteVisitSchema, "siteVisits");
 export const UserModel = mongoose.models.User || mongoose.model("User", userSchema, "users");
