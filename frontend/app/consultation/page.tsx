@@ -9,6 +9,7 @@ import {
   CONSULTATION_TITLE,
   type ConsultationAnswers,
   type ConsultationQuestion,
+  validateConsultationField,
 } from "@/lib/consultationForm";
 
 // Public page (no login): customers open jkcrm.site/consultation and their answers are saved to the CRM.
@@ -23,11 +24,28 @@ export default function ConsultationPage() {
   const [values, setValues] = useState<Record<string, string | string[]>>({});
   const [otherText, setOtherText] = useState<Record<string, string>>({});
   const [error, setError] = useState("");
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [submitting, setSubmitting] = useState(false);
   const [done, setDone] = useState(false);
 
   function setText(id: string, value: string) {
     setValues((v) => ({ ...v, [id]: value }));
+    if (fieldErrors[id]) setFieldErrors((e) => ({ ...e, [id]: "" }));
+  }
+
+  // Errors for every question; "Other" ticked but left empty counts as an error.
+  function validateAll(): Record<string, string> {
+    const errors: Record<string, string> = {};
+    for (const q of CONSULTATION_QUESTIONS) {
+      const value = values[q.id];
+      if (q.type === "text" || q.type === "paragraph") {
+        const msg = validateConsultationField(q.id, typeof value === "string" ? value : "");
+        if (msg) errors[q.id] = msg;
+      }
+      const otherChosen = Array.isArray(value) ? value.includes(OTHER) : value === OTHER;
+      if (q.other && otherChosen && !(otherText[q.id] || "").trim()) errors[q.id] = "Please specify your \"Other\" answer.";
+    }
+    return errors;
   }
 
   function toggleOption(id: string, option: string) {
@@ -60,11 +78,15 @@ export default function ConsultationPage() {
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
-    const answers = buildAnswers();
-    if (!answers.name || !answers.phone) {
-      setError("Please fill in your Full Name and Phone Number.");
+    const errors = validateAll();
+    setFieldErrors(errors);
+    const firstInvalid = CONSULTATION_QUESTIONS.find((q) => errors[q.id]);
+    if (firstInvalid) {
+      setError("Please correct the highlighted fields.");
+      document.getElementById(`q-${firstInvalid.id}`)?.scrollIntoView({ behavior: "smooth", block: "center" });
       return;
     }
+    const answers = buildAnswers();
     setSubmitting(true);
     try {
       await api.submitConsultation(answers);
@@ -124,9 +146,14 @@ export default function ConsultationPage() {
                 question={q}
                 value={values[q.id]}
                 otherText={otherText[q.id] || ""}
+                error={fieldErrors[q.id]}
                 onText={(v) => setText(q.id, v)}
+                onBlur={(v) => setFieldErrors((e) => ({ ...e, [q.id]: validateConsultationField(q.id, v) }))}
                 onToggle={(o) => toggleOption(q.id, o)}
-                onOtherText={(v) => setOtherText((t) => ({ ...t, [q.id]: v }))}
+                onOtherText={(v) => {
+                  setOtherText((t) => ({ ...t, [q.id]: v }));
+                  if (fieldErrors[q.id]) setFieldErrors((e) => ({ ...e, [q.id]: "" }));
+                }}
               />
             ))}
 
@@ -137,7 +164,7 @@ export default function ConsultationPage() {
             <div className="flex flex-col-reverse items-center gap-4 pt-4 pb-10 sm:flex-row sm:justify-between">
               <button
                 type="button"
-                onClick={() => { setValues({}); setOtherText({}); setError(""); }}
+                onClick={() => { setValues({}); setOtherText({}); setError(""); setFieldErrors({}); }}
                 className="text-xs uppercase tracking-[0.2em] text-[#f3e7d4]/60 hover:text-[#d8bd7d]"
               >
                 Clear form
@@ -165,12 +192,14 @@ type QuestionCardProps = {
   question: ConsultationQuestion;
   value: string | string[] | undefined;
   otherText: string;
+  error?: string;
   onText: (value: string) => void;
+  onBlur: (value: string) => void;
   onToggle: (option: string) => void;
   onOtherText: (value: string) => void;
 };
 
-function QuestionCard({ question: q, value, otherText, onText, onToggle, onOtherText }: QuestionCardProps) {
+function QuestionCard({ question: q, value, otherText, error, onText, onBlur, onToggle, onOtherText }: QuestionCardProps) {
   const inputLine =
     "w-full border-0 border-b border-[#d8bd7d]/30 bg-transparent px-0 py-2 text-sm text-white placeholder:text-[#f3e7d4]/35 focus:border-[#d8bd7d] focus:outline-none focus:ring-0";
   const selected = (o: string) => (q.type === "checkbox" ? ((value as string[]) || []).includes(o) : value === o);
@@ -181,7 +210,7 @@ function QuestionCard({ question: q, value, otherText, onText, onToggle, onOther
     }`;
 
   return (
-    <div className="rounded-2xl border border-[#d8bd7d]/15 bg-[#1b1712]/80 p-5 sm:p-6">
+    <div id={`q-${q.id}`} className={`rounded-2xl border bg-[#1b1712]/80 p-5 sm:p-6 ${error ? "border-red-400/70" : "border-[#d8bd7d]/15"}`}>
       <p className="text-[15px] font-normal leading-snug text-white">
         {q.label} {q.required && <span className="text-[#d8bd7d]">*</span>}
       </p>
@@ -192,8 +221,12 @@ function QuestionCard({ question: q, value, otherText, onText, onToggle, onOther
           className={`${inputLine} mt-4`}
           placeholder="Your answer"
           type={q.id === "phone" ? "tel" : q.id === "email" ? "email" : "text"}
+          inputMode={q.id === "phone" ? "tel" : q.id === "email" ? "email" : "text"}
+          autoComplete={q.id === "name" ? "name" : q.id === "phone" ? "tel" : q.id === "email" ? "email" : "off"}
+          maxLength={q.id === "phone" ? 16 : q.id === "name" ? 60 : 100}
           value={(value as string) || ""}
-          onChange={(e) => onText(e.target.value)}
+          onChange={(e) => onText(q.id === "phone" ? e.target.value.replace(/[^\d+\s-]/g, "") : e.target.value)}
+          onBlur={(e) => e.target.value && onBlur(e.target.value)}
         />
       )}
 
@@ -201,6 +234,7 @@ function QuestionCard({ question: q, value, otherText, onText, onToggle, onOther
         <textarea
           className={`${inputLine} mt-4 resize-y`}
           rows={3}
+          maxLength={1000}
           placeholder="Your answer"
           value={(value as string) || ""}
           onChange={(e) => onText(e.target.value)}
@@ -233,6 +267,7 @@ function QuestionCard({ question: q, value, otherText, onText, onToggle, onOther
               <span className="shrink-0">Other:</span>
               <input
                 className={`${inputLine} py-1`}
+                maxLength={100}
                 placeholder="Please specify"
                 value={otherText}
                 onChange={(e) => {
@@ -244,6 +279,8 @@ function QuestionCard({ question: q, value, otherText, onText, onToggle, onOther
           )}
         </div>
       )}
+
+      {error && <p className="mt-3 text-xs text-red-300">{error}</p>}
     </div>
   );
 }

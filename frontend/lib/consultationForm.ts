@@ -256,3 +256,33 @@ export const CONSULTATION_QUESTIONS: ConsultationQuestion[] = [
     type: "paragraph"
   }
 ];
+
+// ---- Validation (backend publicController.js repeats the name/phone/email rules) ----
+
+export const NAME_RE = /^[A-Za-z][A-Za-z .'-]{1,59}$/;
+// Indian mobile: optional +91 / 91 / 0, then 10 digits starting 6–9.
+export const PHONE_RE = /^(?:\+?91|0)?[6-9]\d{9}$/;
+export const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
+
+export function validateConsultationField(id: string, value: string): string {
+  const v = value.trim();
+  switch (id) {
+    case "name":
+      if (!v) return "Please enter your full name.";
+      if (!NAME_RE.test(v)) return "Use letters only (2–60 characters).";
+      return "";
+    case "phone":
+      if (!v) return "Please enter your phone number.";
+      if (!PHONE_RE.test(v.replace(/[\s-]/g, ""))) return "Enter a valid 10-digit mobile number.";
+      return "";
+    case "email":
+      return v && !EMAIL_RE.test(v) ? "Enter a valid email address, e.g. name@gmail.com." : "";
+    case "location":
+      if (!v) return "";
+      return v.length < 2 || v.length > 100 || !/[A-Za-z]/.test(v) ? "Enter a valid location, e.g. Gachibowli, Hyderabad." : "";
+    case "notes":
+      return v.length > 1000 ? "Please keep notes under 1000 characters." : "";
+    default:
+      return "";
+  }
+}

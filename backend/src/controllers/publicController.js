@@ -566,6 +566,19 @@ function cleanConsultationAnswers(raw) {
 const lastTenDigits = (phone) => String(phone || "").replace(/\D/g, "").slice(-10);
 const joinAnswer = (value) => (Array.isArray(value) ? value.join(", ") : value || "");
 
+// Same rules as frontend/lib/consultationForm.ts, so the API can't be used to bypass the form checks.
+const NAME_RE = /^[A-Za-z][A-Za-z .'-]{1,59}$/;
+const PHONE_RE = /^(?:\+?91|0)?[6-9]\d{9}$/;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/;
+
+function consultationError(answers) {
+  if (!answers.name || !NAME_RE.test(answers.name)) return "Please enter a valid full name (letters only).";
+  if (!answers.phone || !PHONE_RE.test(answers.phone.replace(/[\s-]/g, ""))) return "Please enter a valid 10-digit mobile number.";
+  if (answers.email && !EMAIL_RE.test(answers.email)) return "Please enter a valid email address.";
+  if (answers.location && (answers.location.length > 100 || !/[A-Za-z]/.test(answers.location))) return "Please enter a valid location.";
+  return "";
+}
+
 export async function submitConsultation(req, res) {
   const ip = req.headers["x-forwarded-for"]?.split(",")[0] || req.socket.remoteAddress || "unknown";
   if (isRateLimited(ip)) {
@@ -577,8 +590,9 @@ export async function submitConsultation(req, res) {
     return res.status(400).json({ error: "Missing form answers" });
   }
   const answers = cleanConsultationAnswers(raw);
-  if (!answers.name || !answers.phone || lastTenDigits(answers.phone).length < 10) {
-    return res.status(400).json({ error: "Please enter your name and a valid phone number" });
+  const invalid = consultationError(answers);
+  if (invalid) {
+    return res.status(400).json({ error: invalid });
   }
 
   // Same person filling the form again (or an existing Facebook/website lead) → attach to that lead.
