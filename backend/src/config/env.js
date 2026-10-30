@@ -18,6 +18,7 @@ export const config = {
   fbPageToken: process.env.FB_PAGE_TOKEN || "",
   fbGraphVersion: process.env.FB_GRAPH_VERSION || "v21.0",
   fbPageId: process.env.FB_PAGE_ID || "",
+  mcpSecret: process.env.MCP_SECRET || "",
   fbPollSeconds: Number(process.env.FB_POLL_SECONDS ?? 60),
   fbPollLookbackHours: Number(process.env.FB_POLL_LOOKBACK_HOURS ?? 24),
 };

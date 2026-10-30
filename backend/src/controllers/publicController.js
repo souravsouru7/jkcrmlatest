@@ -1,6 +1,7 @@
 import store, { persistFollowUp, persistLead } from "../models/store.js";
 import crypto from "crypto";
 import { config } from "../config/env.js";
+import { LeadModel } from "../models/mongo.js";
 
 const STAGES = ["New Lead", "Contacted", "Qualified", "Site Visit", "Quotation", "Negotiation", "Won", "Lost"];
 const PRIORITIES = ["Hot", "Warm", "Cold"];
@@ -288,7 +289,9 @@ async function importLeadRow(row, { sheetName, label }) {
   }
 
   const phone = String(f.phone).trim();
-  const existingLead = store.leads.find((lead) => String(lead.phone).trim() === phone);
+  // Check Mongo too: another backend process (e.g. during a restart) may have just saved this lead.
+  const existingLead = store.leads.find((lead) => String(lead.phone).trim() === phone)
+    || await LeadModel.findOne({ phone }, { id: 1 }).lean();
   if (existingLead) {
     return reply(200, {
       success: true,

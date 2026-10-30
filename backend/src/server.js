@@ -5,6 +5,8 @@ import { connectDB } from "./config/db.js";
 import { hydrateStoreFromMongo, seedDemoDataIfEmpty } from "./models/store.js";
 import { seedAdminUser } from "./models/users.js";
 import { startFacebookLeadPolling } from "./controllers/publicController.js";
+import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import { buildMcpServer } from "./mcp/server.js";
 
 import publicRoutes from "./routes/public.js";
 import authRoutes from "./routes/auth.js";
@@ -38,6 +40,29 @@ app.use("/api/site-visits", siteVisitRoutes);
 app.use("/api/quotations", quotationRoutes);
 app.use("/api/dashboard", dashboardRoutes);
 app.use("/api/reminders", reminderRoutes);
+
+// Claude connector (claude.ai web/iPhone and Claude Code). The secret in the URL is the auth,
+// because claude.ai custom connectors can't send custom headers.
+app.post("/mcp/:secret", async (req, res) => {
+  if (!config.mcpSecret || req.params.secret !== config.mcpSecret) {
+    return res.status(404).json({ error: "Route not found" });
+  }
+  const server = buildMcpServer();
+  const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+  res.on("close", () => {
+    transport.close();
+    server.close();
+  });
+  try {
+    await server.connect(transport);
+    await transport.handleRequest(req, res, req.body);
+  } catch (err) {
+    console.error("[MCP]", err);
+    if (!res.headersSent) res.status(500).json({ error: "MCP error" });
+  }
+});
+
+app.all("/mcp/:secret", (_req, res) => res.status(405).json({ error: "Method not allowed" }));
 
 app.use((_req, res) => res.status(404).json({ error: "Route not found" }));
 
