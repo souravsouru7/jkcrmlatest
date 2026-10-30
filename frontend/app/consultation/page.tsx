@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
+import { Cormorant_Garamond, Josefin_Sans } from "next/font/google";
 import { api } from "@/lib/api";
 import {
   CONSULTATION_DESCRIPTION,
@@ -11,6 +12,10 @@ import {
 } from "@/lib/consultationForm";
 
 // Public page (no login): customers open jkcrm.site/consultation and their answers are saved to the CRM.
+// Look follows thejkinteriors.com: dark background, gold accents, Cormorant Garamond + Josefin Sans.
+
+const display = Cormorant_Garamond({ subsets: ["latin"], weight: ["400", "500", "600"] });
+const label = Josefin_Sans({ subsets: ["latin"], weight: ["300", "400", "600"] });
 
 const OTHER = "__other__";
 
@@ -73,21 +78,46 @@ export default function ConsultationPage() {
   }
 
   return (
-    <div className="min-h-screen bg-teal-50 text-slate-900 py-6 px-4">
-      <div className="mx-auto max-w-2xl space-y-3">
-        <header className="rounded-lg bg-white border border-slate-200 border-t-8 border-t-teal-700 p-6 shadow-sm">
-          <h1 className="text-2xl sm:text-3xl font-semibold">{CONSULTATION_TITLE}</h1>
-          <p className="mt-3 whitespace-pre-line text-sm text-slate-600 leading-relaxed">{CONSULTATION_DESCRIPTION}</p>
-          {!done && <p className="mt-4 text-xs text-red-600">* Indicates required question</p>}
+    <div className={`${label.className} min-h-screen bg-[#141210] text-[#f3e7d4]`}>
+      <div className="pointer-events-none fixed inset-0 bg-[radial-gradient(ellipse_at_top,rgba(216,189,125,0.12),transparent_60%)]" />
+
+      <div className="relative mx-auto max-w-2xl px-4 py-10 sm:py-14">
+        <header className="text-center">
+          <a href="https://www.thejkinteriors.com/" target="_blank" rel="noopener noreferrer" className="inline-block">
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/jk-logo.png"
+              alt="JK Interior's Studio — Designing Dreams, Defining Luxury"
+              className="mx-auto h-28 w-28 rounded-full object-cover ring-1 ring-[#d8bd7d]/40 sm:h-32 sm:w-32"
+            />
+          </a>
+          <p className="mt-6 text-[11px] uppercase tracking-[0.35em] text-[#d8bd7d]">Design Consultation</p>
+          <h1 className={`${display.className} mt-3 text-4xl font-medium leading-tight text-white sm:text-5xl`}>
+            {CONSULTATION_TITLE}
+          </h1>
+          <div className="mx-auto mt-5 h-px w-16 bg-[#d8bd7d]/60" />
+          <p className="mx-auto mt-5 max-w-xl whitespace-pre-line text-sm font-light leading-relaxed text-[#f3e7d4]/75">
+            {CONSULTATION_DESCRIPTION}
+          </p>
+          {!done && <p className="mt-4 text-xs text-[#d8bd7d]/80">* Indicates required question</p>}
         </header>
 
         {done ? (
-          <div className="rounded-lg bg-white border border-slate-200 p-6 shadow-sm">
-            <h2 className="text-lg font-semibold">Thank you!</h2>
-            <p className="mt-2 text-sm text-slate-600">Your response has been recorded. Our team will contact you shortly.</p>
+          <div className="mt-10 rounded-2xl border border-[#d8bd7d]/25 bg-[#1b1712] p-8 text-center">
+            <p className="text-[11px] uppercase tracking-[0.35em] text-[#d8bd7d]">Response recorded</p>
+            <h2 className={`${display.className} mt-3 text-3xl text-white`}>Thank you</h2>
+            <p className="mt-3 text-sm font-light text-[#f3e7d4]/75">
+              Our design team will review your preferences and contact you shortly.
+            </p>
+            <a
+              href="https://www.thejkinteriors.com/"
+              className="mt-6 inline-block rounded-full border border-[#d8bd7d] px-6 py-2.5 text-xs uppercase tracking-[0.2em] text-[#d8bd7d] hover:bg-[#d8bd7d] hover:text-[#141210]"
+            >
+              Visit our website
+            </a>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-3">
+          <form onSubmit={handleSubmit} className="mt-10 space-y-4">
             {CONSULTATION_QUESTIONS.map((q) => (
               <QuestionCard
                 key={q.id}
@@ -100,26 +130,32 @@ export default function ConsultationPage() {
               />
             ))}
 
-            {error && <p className="rounded-lg bg-red-50 border border-red-200 px-4 py-3 text-sm text-red-700">{error}</p>}
+            {error && (
+              <p className="rounded-xl border border-red-400/40 bg-red-500/10 px-4 py-3 text-sm text-red-200">{error}</p>
+            )}
 
-            <div className="flex items-center justify-between pt-2 pb-10">
-              <button
-                type="submit"
-                disabled={submitting}
-                className="rounded-md bg-teal-700 px-6 py-2.5 text-sm font-medium text-white hover:bg-teal-800 disabled:opacity-60"
-              >
-                {submitting ? "Submitting..." : "Submit"}
-              </button>
+            <div className="flex flex-col-reverse items-center gap-4 pt-4 pb-10 sm:flex-row sm:justify-between">
               <button
                 type="button"
                 onClick={() => { setValues({}); setOtherText({}); setError(""); }}
-                className="text-sm font-medium text-teal-700 hover:underline"
+                className="text-xs uppercase tracking-[0.2em] text-[#f3e7d4]/60 hover:text-[#d8bd7d]"
               >
                 Clear form
+              </button>
+              <button
+                type="submit"
+                disabled={submitting}
+                className="w-full rounded-full bg-[#d8bd7d] px-10 py-3.5 text-xs font-semibold uppercase tracking-[0.25em] text-[#141210] transition hover:bg-[#f1dfb6] disabled:opacity-60 sm:w-auto"
+              >
+                {submitting ? "Submitting..." : "Submit"}
               </button>
             </div>
           </form>
         )}
+
+        <footer className="border-t border-[#d8bd7d]/15 pt-6 text-center text-[11px] uppercase tracking-[0.3em] text-[#f3e7d4]/40">
+          JK Interior&apos;s Studio · Hyderabad
+        </footer>
       </div>
     </div>
   );
@@ -135,19 +171,25 @@ type QuestionCardProps = {
 };
 
 function QuestionCard({ question: q, value, otherText, onText, onToggle, onOtherText }: QuestionCardProps) {
-  const inputLine = "w-full border-0 border-b border-slate-300 bg-transparent px-0 py-2 text-sm focus:border-teal-700 focus:outline-none focus:ring-0";
+  const inputLine =
+    "w-full border-0 border-b border-[#d8bd7d]/30 bg-transparent px-0 py-2 text-sm text-white placeholder:text-[#f3e7d4]/35 focus:border-[#d8bd7d] focus:outline-none focus:ring-0";
   const selected = (o: string) => (q.type === "checkbox" ? ((value as string[]) || []).includes(o) : value === o);
   const choose = (o: string) => (q.type === "checkbox" ? onToggle(o) : onText(o));
+  const chip = (on: boolean) =>
+    `flex cursor-pointer items-center gap-3 rounded-xl border px-4 py-3 text-sm transition ${
+      on ? "border-[#d8bd7d] bg-[#d8bd7d]/10 text-white" : "border-[#d8bd7d]/15 text-[#f3e7d4]/85 hover:border-[#d8bd7d]/50"
+    }`;
 
   return (
-    <div className="rounded-lg bg-white border border-slate-200 p-6 shadow-sm">
-      <p className="text-base font-medium">
-        {q.label} {q.required && <span className="text-red-600">*</span>}
+    <div className="rounded-2xl border border-[#d8bd7d]/15 bg-[#1b1712]/80 p-5 sm:p-6">
+      <p className="text-[15px] font-normal leading-snug text-white">
+        {q.label} {q.required && <span className="text-[#d8bd7d]">*</span>}
       </p>
+      {q.type === "checkbox" && <p className="mt-1 text-[11px] uppercase tracking-[0.15em] text-[#d8bd7d]/70">Select all that apply</p>}
 
       {q.type === "text" && (
         <input
-          className={`${inputLine} mt-4 sm:w-1/2`}
+          className={`${inputLine} mt-4`}
           placeholder="Your answer"
           type={q.id === "phone" ? "tel" : q.id === "email" ? "email" : "text"}
           value={(value as string) || ""}
@@ -166,31 +208,32 @@ function QuestionCard({ question: q, value, otherText, onText, onToggle, onOther
       )}
 
       {(q.type === "radio" || q.type === "checkbox") && (
-        <div className="mt-4 space-y-3">
+        <div className="mt-4 grid gap-2 sm:grid-cols-2">
           {q.options?.map((o) => (
-            <label key={o} className="flex cursor-pointer items-center gap-3 text-sm">
+            <label key={o} className={chip(selected(o))}>
               <input
                 type={q.type}
                 name={q.id}
                 checked={selected(o)}
                 onChange={() => choose(o)}
-                className={`h-4 w-4 accent-teal-700 ${q.type === "checkbox" ? "rounded" : ""}`}
+                className="h-4 w-4 shrink-0 accent-[#d8bd7d]"
               />
               {o}
             </label>
           ))}
           {q.other && (
-            <label className="flex items-center gap-3 text-sm">
+            <label className={`${chip(selected(OTHER))} sm:col-span-2`}>
               <input
                 type={q.type}
                 name={q.id}
                 checked={selected(OTHER)}
                 onChange={() => choose(OTHER)}
-                className="h-4 w-4 accent-teal-700"
+                className="h-4 w-4 shrink-0 accent-[#d8bd7d]"
               />
-              Other:
+              <span className="shrink-0">Other:</span>
               <input
                 className={`${inputLine} py-1`}
+                placeholder="Please specify"
                 value={otherText}
                 onChange={(e) => {
                   onOtherText(e.target.value);
