@@ -15,7 +15,7 @@
 function getCrmSheetSyncConfig() {
   return {
     spreadsheetId: "13wKh5QPhdqi8KlqyYabpTR_1JxdGTCZrTqYfLrE0dD8",
-    webhookUrl: "https://api.jktaskmangement.online/api/public/google-sheet",
+    webhookUrl: "https://api.jkcrm.site/api/public/google-sheet",
     webhookSecret: "jk-sheet-sync-2026", // must match SHEET_WEBHOOK_SECRET in backend .env
     targetSheetName: "Meta Ads",
     syncedColumnHeader: "CRM Synced",

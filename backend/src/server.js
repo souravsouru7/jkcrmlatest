@@ -19,10 +19,19 @@ import reminderRoutes from "./routes/reminders.js";
 
 const app = express();
 
-app.use(cors({
-  origin: "*",
+const corsBase = {
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
   allowedHeaders: ["Content-Type", "Authorization", "x-api-key", "x-sheet-secret"],
+};
+
+// /api/public stays open: the website enquiry form can be embedded on any domain.
+// Everything else only answers browsers on the CRM's own origins.
+app.use(cors((req, cb) => {
+  const isPublic = req.path.startsWith("/api/public");
+  cb(null, {
+    ...corsBase,
+    origin: isPublic ? "*" : (origin, done) => done(null, !origin || config.corsOrigins.includes(origin)),
+  });
 }));
 // Keep the raw body so the Facebook webhook can verify Meta's signature.
 app.use(express.json({ verify: (req, _res, buf) => { req.rawBody = buf; } }));

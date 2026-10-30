@@ -19,6 +19,9 @@ export const config = {
   fbGraphVersion: process.env.FB_GRAPH_VERSION || "v21.0",
   fbPageId: process.env.FB_PAGE_ID || "",
   mcpSecret: process.env.MCP_SECRET || "",
+  // Browsers allowed to call the CRM API: live site, Android app (Capacitor) and local dev.
+  corsOrigins: (process.env.CORS_ORIGINS || "https://jkcrm.site,https://www.jkcrm.site,https://localhost,capacitor://localhost,http://localhost:3000")
+    .split(",").map((o) => o.trim()).filter(Boolean),
   fbPollSeconds: Number(process.env.FB_POLL_SECONDS ?? 60),
   fbPollLookbackHours: Number(process.env.FB_POLL_LOOKBACK_HOURS ?? 24),
 };
