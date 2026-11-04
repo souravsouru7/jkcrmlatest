@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { submitLead, googleSheetWebhook, facebookVerify, facebookWebhook, submitConsultation } from "../controllers/publicController.js";
+import { submitLead, googleSheetWebhook, facebookVerify, facebookWebhook, whatsappVerify, whatsappWebhook, submitConsultation } from "../controllers/publicController.js";
 
 const router = Router();
 
@@ -15,5 +15,9 @@ router.post("/consultation", submitConsultation);
 // Facebook Lead Ads — Meta webhook verification + leadgen events
 router.get("/facebook", facebookVerify);
 router.post("/facebook", facebookWebhook);
+
+// WhatsApp Cloud API — chats from Click-to-WhatsApp ads become leads
+router.get("/whatsapp", whatsappVerify);
+router.post("/whatsapp", whatsappWebhook);
 
 export default router;
