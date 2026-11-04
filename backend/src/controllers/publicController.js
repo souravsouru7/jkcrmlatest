@@ -289,8 +289,10 @@ async function importLeadRow(row, { sheetName, label }) {
   }
 
   const phone = String(f.phone).trim();
+  // Match on the last 10 digits so "+91 98…", "9198…" (WhatsApp) and "98…" are the same person.
   // Check Mongo too: another backend process (e.g. during a restart) may have just saved this lead.
-  const existingLead = store.leads.find((lead) => String(lead.phone).trim() === phone)
+  const digits = lastTenDigits(phone);
+  const existingLead = store.leads.find((lead) => digits && lastTenDigits(lead.phone) === digits)
     || await LeadModel.findOne({ phone }, { id: 1 }).lean();
   if (existingLead) {
     return reply(200, {
@@ -537,6 +539,77 @@ export function startFacebookLeadPolling() {
   console.log(`[Facebook Lead Ads] Polling Page ${config.fbPageId} every ${config.fbPollSeconds}s`);
   tick();
   setInterval(tick, config.fbPollSeconds * 1000);
+}
+
+// ---- WhatsApp (Cloud API, coexistence with the WhatsApp Business app) ----
+// Click-to-WhatsApp ads open a chat instead of a lead form; Meta forwards each incoming message here.
+
+export function whatsappVerify(req, res) {
+  const mode = req.query["hub.mode"];
+  const token = req.query["hub.verify_token"];
+  if (mode === "subscribe" && config.waVerifyToken && token === config.waVerifyToken) {
+    return res.status(200).send(req.query["hub.challenge"]);
+  }
+  return res.sendStatus(403);
+}
+
+function whatsappMessageText(msg) {
+  return msg.text?.body
+    || msg.button?.text
+    || msg.interactive?.button_reply?.title
+    || msg.interactive?.list_reply?.title
+    || msg[msg.type]?.caption
+    || `[${msg.type || "message"}]`;
+}
+
+export async function whatsappWebhook(req, res) {
+  if (!validFacebookSignature(req)) {
+    return res.status(401).json({ error: "Invalid signature" });
+  }
+
+  const values = (req.body.entry || []).flatMap((e) => e.changes || [])
+    .filter((c) => c.field === "messages").map((c) => c.value || {});
+  const results = [];
+  for (const value of values) {
+    // value.statuses (sent/delivered/read receipts) carry no messages and are skipped here.
+    for (const msg of value.messages || []) {
+      try {
+        const contact = (value.contacts || []).find((c) => c.wa_id === msg.from);
+        const name = contact?.profile?.name || "WhatsApp Lead";
+        const text = whatsappMessageText(msg);
+        const lead = store.leads.find((l) => lastTenDigits(l.phone) === lastTenDigits(msg.from));
+
+        if (!lead) {
+          const result = await importLeadRow({
+            Name: name,
+            "Phone Number": msg.from,
+            platform: "whatsapp",
+            campaign_name: msg.referral?.headline || "",
+            ad_name: msg.referral?.source_id ? `Ad ${msg.referral.source_id}` : "",
+            "Initial Comments": text,
+          }, { sheetName: "", label: "WhatsApp" });
+          results.push({ from: msg.from, ...result.body });
+          continue;
+        }
+
+        // Existing lead: note chats that came from an ad click (a new enquiry); other messages just bump activity.
+        const now = new Date().toISOString();
+        if (msg.referral) {
+          lead.notes = [lead.notes, `WhatsApp ad message (${now.slice(0, 10)}): ${text}`].filter(Boolean).join(" | ");
+        }
+        lead.lastActivity = `WhatsApp message: ${text.slice(0, 100)}`;
+        lead.updatedAt = now;
+        await persistLead(lead);
+        results.push({ from: msg.from, leadId: lead.id, message: "Message added to existing lead" });
+      } catch (err) {
+        console.error(`[WhatsApp] Failed to handle message from ${msg.from}:`, err.message);
+        results.push({ from: msg.from, error: err.message });
+      }
+    }
+  }
+
+  // Always 200 so Meta doesn't retry messages we've already handled.
+  return res.status(200).json({ received: results.length, results });
 }
 
 // ---- Client consultation form ----
